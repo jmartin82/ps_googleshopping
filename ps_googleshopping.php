@@ -7,7 +7,7 @@ if (!defined('_PS_VERSION_'))
  * @prestashop
  * Version 1.5.31
  * Jordi Martin (jordimartin@gmail.com)
- *  API
+ * API
  * https://developers.google.com/shopping-content/getting-started/requirements-products
  * Based on idea:
  * (http://www.igwane.com/fr/license)
@@ -15,11 +15,15 @@ if (!defined('_PS_VERSION_'))
 
 class GoogleShopping extends Module
 {
+    
+    const CHARSET = 'UTF-8';
+    const REPLACE_FLAGS = ENT_COMPAT;
+    
     function __construct()
     {
         $this->name    = 'ps_googleshopping';
         $this->tab     = 'export';
-        $this->version = '1.0';
+        $this->version = '1.2';
         $this->author  = '@jordi_martin';
         
         parent::__construct();
@@ -31,10 +35,10 @@ class GoogleShopping extends Module
         $this->need_instance          = 0;
         $this->ps_versions_compliancy = array(
             'min' => '1.5',
-            'max' => '1.6'
+            'max' => '1.7'
         );
         
-        $this->uri = ToolsCore::getCurrentUrlProtocolPrefix() .$this->context->shop->domain_ssl.$this->context->shop->physical_uri;
+        $this->uri = ToolsCore::getCurrentUrlProtocolPrefix() . $this->context->shop->domain_ssl . $this->context->shop->physical_uri;
     }
     
     function install()
@@ -49,7 +53,7 @@ class GoogleShopping extends Module
     public function getContent()
     {
         if (isset($_POST['generate'])) {
-        	//shipping price
+            //shipping price
             if (isset($_POST['shipping'])) {
                 Configuration::updateValue('GS_SHIPPING', $_POST['shipping']);
                 
@@ -63,7 +67,6 @@ class GoogleShopping extends Module
             if (isset($_POST['country'])) {
                 Configuration::updateValue('GS_COUNTRY', $_POST['country']);
             }
-            
             
             // Get installed languages
             $languages = Language::getLanguages();
@@ -83,7 +86,7 @@ class GoogleShopping extends Module
                 @mkdir($path_parts["dirname"] . '/file_exports', 0755, true);
                 @chmod($path_parts["dirname"] . '/file_exports', 0755);
             }
-
+            
             //Code EAN13
             if (isset($_POST['gtin']) && $_POST['gtin'] === "on") {
                 Configuration::updateValue('GTIN', intval(1));
@@ -97,7 +100,7 @@ class GoogleShopping extends Module
             } else {
                 Configuration::updateValue('MPN', intval(0));
             }
-
+            
             // QTY
             if (isset($_POST['quantity']) && $_POST['quantity'] === "on") {
                 Configuration::updateValue('QUANTITY', intval(1));
@@ -122,7 +125,7 @@ class GoogleShopping extends Module
             } else {
                 Configuration::updateValue('FEATURED_PRODUCT', intval(0));
             }
-
+            
             //Category shop
             if (isset($_POST['category_shop']) && $_POST['category_shop'] === "on") {
                 Configuration::updateValue('CATEGORY_SHOP', intval(1));
@@ -138,8 +141,8 @@ class GoogleShopping extends Module
         
         // Link to generated files
         $output .= '<fieldset class="space width3">
-						<legend>' . $this->l('Files') . '</legend>
-						<p><b>' . $this->l('Generated link files') . '</b></p>';
+        <legend>' . $this->l('Files') . '</legend>
+        <p><b>' . $this->l('Generated link files') . '</b></p>';
         
         // Get active langs on shop
         $languages = Language::getLanguages();
@@ -147,20 +150,20 @@ class GoogleShopping extends Module
         
         foreach ($languages as $i => $lang) {
             if (Configuration::get('GENERATE_FILE_IN_ROOT') == 1) {
-                $get_file_url = $this->uri. 'googleshopping-' . $lang['iso_code'] . '.xml';
+                $get_file_url = $this->uri . 'googleshopping-' . $lang['iso_code'] . '.xml';
             } else {
-                $get_file_url = $this->uri. 'modules/' . $this->getName() . '/file_exports/googleshopping-' . $lang['iso_code'] . '.xml';
+                $get_file_url = $this->uri . 'modules/' . $this->getName() . '/file_exports/googleshopping-' . $lang['iso_code'] . '.xml';
             }
             
             $output .= '<a href="' . $get_file_url . '">' . $get_file_url . '</a><br />';
         }
         
         $output .= '<hr>';
-        $output .='<p><b>'.$this->l('Automatic file generation').'</b></p>';
-		$output .= $this->l('Install a CRON rule to update the feed frequently');
-		$output .= '<br/>';
-		$output .= $this->uri. 'modules/' . $this->getName() . '/cron.php' . '</p>';
-		$output .= '</fieldset>';
+        $output .= '<p><b>' . $this->l('Automatic file generation') . '</b></p>';
+        $output .= $this->l('Install a CRON rule to update the feed frequently');
+        $output .= '<br/>';
+        $output .= $this->uri . 'modules/' . $this->getName() . '/cron.php' . '</p>';
+        $output .= '</fieldset>';
         
         
         return $output;
@@ -208,92 +211,92 @@ class GoogleShopping extends Module
         (intval(Configuration::get('DESCRIPTION')) === intval(1)) ? $selected_short = "selected" : $selected_long = "selected";
         
         $form = '
-		<form action="' . $_SERVER['REQUEST_URI'] . '" method="post">
+        <form action="' . $_SERVER['REQUEST_URI'] . '" method="post">
 
 
-		<fieldset style="float: right; width: 255px">
-					<legend>' . $this->l('About') . '</legend>
-					<p style="font-size: 1.5em; font-weight: bold; padding-bottom: 0">' . $this->displayName . ' ' . $this->version . '</p>
-					<p style="clear: both">
-					' . $this->description . '
-					</p>
-		</fieldset>
+          <fieldset style="float: right; width: 255px">
+           <legend>' . $this->l('About') . '</legend>
+           <p style="font-size: 1.5em; font-weight: bold; padding-bottom: 0">' . $this->displayName . ' ' . $this->version . '</p>
+           <p style="clear: both">
+               ' . $this->description . '
+           </p>
+       </fieldset>
 
-		<fieldset class="space width3">
-		<legend>' . $this->l('Parameters') . '</legend>';
+       <fieldset class="space width3">
+          <legend>' . $this->l('Parameters') . '</legend>';
         
         $form .= '
-			<label>' . $this->l('Description Type') . ' </label>
-			<div class="margin-form">
-				<select name="description">
-					<option value="1" ' . $selected_short . '>' . $this->l('Short Description') . '</option>
-					<option value="2" ' . $selected_long . '>' . $this->l('Long Description') . '</option>
-				</select>
-			</div>';
+          <label>' . $this->l('Description Type') . ' </label>
+          <div class="margin-form">
+            <select name="description">
+               <option value="1" ' . $selected_short . '>' . $this->l('Short Description') . '</option>
+               <option value="2" ' . $selected_long . '>' . $this->l('Long Description') . '</option>
+           </select>
+       </div>';
         
         // Récupération des langues actives pour la boutique
         $languages = Language::getLanguages();
         foreach ($languages as $i => $lang) {
             $form .= '<label title="product_type_' . $lang['iso_code'] . '">' . $this->l('Google Category') . ' ' . strtoupper($lang['iso_code']) . '</label>
-			<div class="margin-form">
-				<input type="text" name="product_type_' . $lang['iso_code'] . '" value="' . Configuration::get('GS_PRODUCT_TYPE_' . $lang['iso_code']) . '" size="40">
-				<br />(<a href="http://www.google.com/support/merchants/bin/answer.py?answer=160081&query=product_type" target="_blank">' . $this->l('See Google Category') . '</a>)
-			</div>';
+        <div class="margin-form">
+            <input type="text" name="product_type_' . $lang['iso_code'] . '" value="' . Configuration::get('GS_PRODUCT_TYPE_' . $lang['iso_code']) . '" size="40">
+            <br />(<a href="http://www.google.com/support/merchants/bin/answer.py?answer=160081&query=product_type" target="_blank">' . $this->l('See Google Category') . '</a>)
+        </div>';
         }
-
+        
         
         $form .= '<label title="[shipping]">' . $this->l('Shipping') . ' </label>
-			<div class="margin-form">
-				<input type="text" name="shipping" value="' . Configuration::get('GS_SHIPPING') . '">
-			</div>
+    <div class="margin-form">
+        <input type="text" name="shipping" value="' . Configuration::get('GS_SHIPPING') . '">
+    </div>
 
-			<label title="[country]">' . $this->l('Shipping Country') . ' </label>
-			<div class="margin-form">
-				<input type="text" name="country" value="' . ((Configuration::get('GS_COUNTRY') != '') ? (Configuration::get('GS_COUNTRY')) : 'EN') . '">
-			</div>
-			
-			<label title="[image]">' . $this->l('Image Type') . ' </label>
-			<div class="margin-form">
-				<input type="text" name="image" value="' . ((Configuration::get('GS_IMAGE') != '') ? (Configuration::get('GS_IMAGE')) : 'large_default') . '">
-			</div>
+    <label title="[country]">' . $this->l('Shipping Country') . ' </label>
+    <div class="margin-form">
+        <input type="text" name="country" value="' . ((Configuration::get('GS_COUNTRY') != '') ? (Configuration::get('GS_COUNTRY')) : 'EN') . '">
+    </div>
 
-			<hr>
+    <label title="[image]">' . $this->l('Image Type') . ' </label>
+    <div class="margin-form">
+        <input type="text" name="image" value="' . ((Configuration::get('GS_IMAGE') != '') ? (Configuration::get('GS_IMAGE')) : 'large_default') . '">
+    </div>
 
-			<table>
-				<tr>
-					<td><label>' . $this->l('Generate the files to the root of the site') . '</label></td>
-					<td><input type="checkbox" name="generate_root" ' . $generate_file_in_root . '></td>
-				</tr>
-				<tr>
-					<td><label>' . $this->l('Categories breadcrumb shop') . '</label></td>
-					<td><input type="checkbox" name="category_shop" ' . $category_shop . '></td>
-				</tr>
-				<tr>
-					<td><label>' . $this->l('Manufacturers References') . '</label></td>
-					<td><input type="checkbox" name="mpn" ' . $mpn . ' title="' . $this->l('Recomended') . '"></td>
-				</tr>
-				<tr>
-					<td><label>' . $this->l('Number of products') . '</label></td>
-					<td><input type="checkbox" name="quantity" ' . $quantity . ' title="' . $this->l('Recomended') . '"></td>
-				</tr>
-				<tr>
-					<td><label title="[brand]">' . $this->l('Brand') . '</label></td>
-					<td><input type="checkbox" name="brand" ' . $brand . ' title="' . $this->l('Recomended') . '"></td>
-				</tr>
-				<tr>
-					<td><label>' . $this->l('Code EAN13') . '</label></td>
-					<td><input type="checkbox" name="gtin" ' . $gtin . ' title="' . $this->l('Recomended') . '"></td>
-				</tr>
-				<tr>
-					<td><label>' . $this->l('Featured Products') . '</label></td>
-					<td><input type="checkbox" name="featured_product" ' . $featured_product . '></td>
-				</tr>
-			</table>
-			<br>
-			<center><input name="generate" type="submit" value="' . $this->l('Generate') . '"></center>
-		</fieldset>
-		</form>
-		';
+    <hr>
+
+    <table>
+        <tr>
+           <td><label>' . $this->l('Generate the files to the root of the site') . '</label></td>
+           <td><input type="checkbox" name="generate_root" ' . $generate_file_in_root . '></td>
+       </tr>
+       <tr>
+           <td><label>' . $this->l('Categories breadcrumb shop') . '</label></td>
+           <td><input type="checkbox" name="category_shop" ' . $category_shop . '></td>
+       </tr>
+       <tr>
+           <td><label>' . $this->l('Manufacturers References') . '</label></td>
+           <td><input type="checkbox" name="mpn" ' . $mpn . ' title="' . $this->l('Recomended') . '"></td>
+       </tr>
+       <tr>
+           <td><label>' . $this->l('Number of products') . '</label></td>
+           <td><input type="checkbox" name="quantity" ' . $quantity . ' title="' . $this->l('Recomended') . '"></td>
+       </tr>
+       <tr>
+           <td><label title="[brand]">' . $this->l('Brand') . '</label></td>
+           <td><input type="checkbox" name="brand" ' . $brand . ' title="' . $this->l('Recomended') . '"></td>
+       </tr>
+       <tr>
+           <td><label>' . $this->l('Code EAN13') . '</label></td>
+           <td><input type="checkbox" name="gtin" ' . $gtin . ' title="' . $this->l('Recomended') . '"></td>
+       </tr>
+       <tr>
+           <td><label>' . $this->l('Featured Products') . '</label></td>
+           <td><input type="checkbox" name="featured_product" ' . $featured_product . '></td>
+       </tr>
+   </table>
+   <br>
+   <center><input name="generate" type="submit" value="' . $this->l('Generate') . '"></center>
+</fieldset>
+</form>
+';
         return $form;
     }
     
@@ -320,48 +323,53 @@ class GoogleShopping extends Module
         }
     }
     
-private function rip_tags($string) { 
-    
-    // ----- remove HTML TAGs ----- 
-    $string = preg_replace ('/<[^>]*>/', ' ', $string); 
-    
-    // ----- remove control characters ----- 
-    $string = str_replace("\r", '', $string);    // --- replace with empty space
-    $string = str_replace("\n", ' ', $string);   // --- replace with space
-    $string = str_replace("\t", ' ', $string);   // --- replace with space
-    
-    // ----- remove multiple spaces ----- 
-    $string = trim(preg_replace('/ {2,}/', ' ', $string));
-    
-    return $string; 
-
-}
+    private function rip_tags($string)
+    {
+        
+        // ----- remove HTML TAGs ----- 
+        $string = preg_replace('/<[^>]*>/', ' ', $string);
+        
+        // ----- remove control characters ----- 
+        $string = str_replace("\r", '', $string); // --- replace with empty space
+        $string = str_replace("\n", ' ', $string); // --- replace with space
+        $string = str_replace("\t", ' ', $string); // --- replace with space
+        
+        // ----- remove multiple spaces ----- 
+        $string = trim(preg_replace('/ {2,}/', ' ', $string));
+        
+        return $string;
+        
+    }
     
     private function generateFile($lang)
     {
         $path_parts = pathinfo(__FILE__);
         
-        if (Configuration::get('GENERATE_FILE_IN_ROOT')):
+        if (Configuration::get('GENERATE_FILE_IN_ROOT')) {
             $generate_file_path = '../googleshopping-' . $lang['iso_code'] . '.xml';
-        else:
+        } else {
             $generate_file_path = $path_parts["dirname"] . '/file_exports/googleshopping-' . $lang['iso_code'] . '.xml';
-        endif;
+        }
+        
         
         //Google Shopping XML
         $xml = '<?xml version="1.0" encoding="UTF-8" ?>' . "\n";
         $xml .= '<feed xmlns="http://www.w3.org/2005/Atom" xmlns:g="http://base.google.com/ns/1.0" encoding="UTF-8" >' . "\n";
         $xml .= '<title>' . Configuration::get('PS_SHOP_NAME') . '</title>' . "\n";
-        $xml .= '<link href="'.$this->uri.'" rel="alternate" type="text/html"/>' . "\n";
+        $xml .= '<link href="' . htmlspecialchars($this->uri, self::REPLACE_FLAGS, self::CHARSET, false) . '" rel="alternate" type="text/html"/>' . "\n";
         $xml .= '<modified>' . date('Y-m-d') . 'T01:01:01Z</modified><author><name>' . Configuration::get('PS_SHOP_NAME') . '</name></author>' . "\n";
         
         $googleshoppingfile = fopen($generate_file_path, 'w');
-        
+        fwrite($googleshoppingfile, pack("CCC", 0xef, 0xbb, 0xbf));
         fwrite($googleshoppingfile, $xml);
+        
+        // add UTF-8 byte order mark
+        fwrite($googleshoppingfile, pack("CCC", 0xef, 0xbb, 0xbf));
         
         $sql = 'SELECT * FROM ' . _DB_PREFIX_ . 'product p' . ' LEFT JOIN ' . _DB_PREFIX_ . 'product_lang pl ON p.id_product = pl.id_product' . ' WHERE p.active = 1 AND pl.id_lang=' . $lang['id_lang'];
         
         $products = Db::getInstance()->ExecuteS($sql);
-                
+        
         $title_limit       = 70;
         $description_limit = 10000;
         
@@ -390,25 +398,27 @@ private function rip_tags($string) {
             } else {
                 $description_crop = $product['description_short'];
             }
-            $description_crop =$this->rip_tags($description_crop);
+            $description_crop = $this->rip_tags($description_crop);
             
             if (strlen($description_crop) > $description_limit) {
                 $description_crop = substr($description_crop, 0, ($description_limit - 1));
                 $description_crop = substr($description_crop, 0, strrpos($description_crop, " "));
             }
+            
             $xml_googleshopping .= '<entry>' . "\n";
             $xml_googleshopping .= '<g:id>' . $product['id_product'] . '-' . $lang['iso_code'] . '</g:id>' . "\n";
-            $xml_googleshopping .= '<title>' . htmlspecialchars(ucfirst(mb_strtolower($title_crop, 'UTF-8'))) . '</title>' . "\n";
-            $xml_googleshopping .= '<link>' . $product_link . '</link>' . "\n";
+            $xml_googleshopping .= '<title>' . htmlentities(ucfirst(mb_strtolower($title_crop, self::CHARSET)), self::REPLACE_FLAGS, self::CHARSET) . '</title>' . "\n";
+            $xml_googleshopping .= '<link>' . htmlspecialchars($product_link, self::REPLACE_FLAGS, self::CHARSET, false) . '</link>' . "\n";
             $xml_googleshopping .= '<g:price>' . $price . '</g:price>' . "\n";
-            $xml_googleshopping .= '<g:description>' . htmlspecialchars($description_crop, null, 'UTF-8', false) . '</g:description>' . "\n";
+            $xml_googleshopping .= '<g:description>' . htmlentities($description_crop, self::REPLACE_FLAGS, self::CHARSET) . '</g:description>' . "\n";
             $xml_googleshopping .= '<g:condition>new</g:condition>' . "\n"; // condition = new, used, refurbished
+
             
             if (Configuration::get('MPN') && $product['supplier_reference'] != '') {
                 $xml_googleshopping .= '<g:mpn>' . $product['supplier_reference'] . '</g:mpn>';
             }
             
-            // Pour chaque image
+
             $images       = Image::getImages($lang['id_lang'], $product['id_product']);
             $indexTabLang = 0;
             
@@ -436,21 +446,19 @@ private function rip_tags($string) {
             }
             
             if (Configuration::get('QUANTITY') == 1) {
-            	$quantity = StockAvailable::getQuantityAvailableByProduct($product['id_product'], 0);
-                if ($quantity>0)
-                {
-               		$xml_googleshopping .= '<g:quantity>'.$quantity.'</g:quantity>'."\n";
-                	$xml_googleshopping .= '<g:availability>in stock</g:availability>'."\n";
-                }
-                else{
-                	$xml_googleshopping .= '<g:quantity>0</g:quantity>'."\n";
-                	$xml_googleshopping .= '<g:availability>out of stock</g:availability>'."\n";
+                $quantity = StockAvailable::getQuantityAvailableByProduct($product['id_product'], 0);
+                if ($quantity > 0) {
+                    $xml_googleshopping .= '<g:quantity>' . $quantity . '</g:quantity>' . "\n";
+                    $xml_googleshopping .= '<g:availability>in stock</g:availability>' . "\n";
+                } else {
+                    $xml_googleshopping .= '<g:quantity>0</g:quantity>' . "\n";
+                    $xml_googleshopping .= '<g:availability>out of stock</g:availability>' . "\n";
                 }
             }
             
             // Brand
             if (Configuration::get('BRAND') && $product['id_manufacturer'] != '0') {
-                $xml_googleshopping .= '<g:brand>' . htmlspecialchars(Manufacturer::getNameById(intval($product['id_manufacturer'])), null, 'UTF-8', false) . '</g:brand>' . "\n";
+                $xml_googleshopping .= '<g:brand>' . htmlspecialchars(Manufacturer::getNameById(intval($product['id_manufacturer'])), self::REPLACE_FLAGS, self::CHARSET, false) . '</g:brand>' . "\n";
             }
             
             // Category google
@@ -459,9 +467,9 @@ private function rip_tags($string) {
                 $product_type = str_replace('&', '&amp;', $product_type);
                 $xml_googleshopping .= '<g:google_product_category>' . $product_type . '</g:google_product_category>' . "\n";
             }
-
+            
             // Category shop
-            if (Configuration::get('CATEGORY_SHOP')){
+            if (Configuration::get('CATEGORY_SHOP')) {
                 $categories = $this->getBreadcrumbCategory($product['id_category_default'], $product['id_lang']);
                 $categories = str_replace('>', '&gt;', $categories);
                 $categories = str_replace('&', '&amp;', $categories);
@@ -493,7 +501,7 @@ private function rip_tags($string) {
             }
             $xml_googleshopping .= '</entry>' . "\n";
             
-            // Ecriture du produit dans l'XML googleshopping
+            // Write element
             fwrite($googleshoppingfile, $xml_googleshopping);
         }
         
@@ -504,57 +512,48 @@ private function rip_tags($string) {
         @chmod($generate_file_path, 0777);
         return true;
     }
-
+    
     private function getBreadcrumbCategory($id_category, $id_lang = null)
-    	{
-    		$context = Context::getContext()->cloneContext();
-    		$context->shop = clone($context->shop);
-
-    		if (is_null($id_lang))
-    			$id_lang = $context->language->id;
-
-    		$categories = '';
-    		$id_current = $id_category;
-    		if (count(Category::getCategoriesWithoutParent()) > 1 && Configuration::get('PS_MULTISHOP_FEATURE_ACTIVE') && count(Shop::getShops(true, null, true)) != 1)
-    			$context->shop->id_category = Category::getTopCategory()->id;
-    		elseif (!$context->shop->id)
-    			$context->shop = new Shop(Configuration::get('PS_SHOP_DEFAULT'));
-    		$id_shop = $context->shop->id;
-    		while (true)
-    		{
-    			$sql = '
-    			SELECT c.*, cl.*
-    			FROM `'._DB_PREFIX_.'category` c
-    			LEFT JOIN `'._DB_PREFIX_.'category_lang` cl
-    				ON (c.`id_category` = cl.`id_category`
-    				AND `id_lang` = '.(int)$id_lang.Shop::addSqlRestrictionOnLang('cl').')';
-    			if (Shop::isFeatureActive() && Shop::getContext() == Shop::CONTEXT_SHOP)
-    				$sql .= '
-    			LEFT JOIN `'._DB_PREFIX_.'category_shop` cs
-    				ON (c.`id_category` = cs.`id_category` AND cs.`id_shop` = '.(int)$id_shop.')';
-    			$sql .= '
-    			WHERE c.`id_category` = '.(int)$id_current;
-    			if (Shop::isFeatureActive() && Shop::getContext() == Shop::CONTEXT_SHOP)
-    				$sql .= '
-    				AND cs.`id_shop` = '.(int)$context->shop->id;
-    			$root_category = Category::getRootCategory();
-    			if (Shop::isFeatureActive() && Shop::getContext() == Shop::CONTEXT_SHOP &&
-    				(!Tools::isSubmit('id_category') ||
-    					(int)Tools::getValue('id_category') == (int)$root_category->id ||
-    					(int)$root_category->id == (int)$context->shop->id_category))
-    				$sql .= '
-    					AND c.`id_parent` != 0';
-
-    			$result = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
-
-                if (!$result || ($result[0]['id_category'] == $context->shop->id_category))
-             		return $categories;
-
-    			if (isset($result[0]))
-    				$categories = $result[0]['name'].' > '.$categories;
-
-    			$id_current = $result[0]['id_parent'];
-    		}
-    	}
+    {
+        $context       = Context::getContext()->cloneContext();
+        $context->shop = clone ($context->shop);
+        
+        if (is_null($id_lang))
+            $id_lang = $context->language->id;
+        
+        $categories = '';
+        $id_current = $id_category;
+        if (count(Category::getCategoriesWithoutParent()) > 1 && Configuration::get('PS_MULTISHOP_FEATURE_ACTIVE') && count(Shop::getShops(true, null, true)) != 1)
+            $context->shop->id_category = Category::getTopCategory()->id;
+        elseif (!$context->shop->id)
+            $context->shop = new Shop(Configuration::get('PS_SHOP_DEFAULT'));
+        $id_shop = $context->shop->id;
+        while (true) {
+            $sql = '
+     SELECT c.*, cl.*
+     FROM `' . _DB_PREFIX_ . 'category` c
+     LEFT JOIN `' . _DB_PREFIX_ . 'category_lang` cl
+     ON (c.`id_category` = cl.`id_category`
+        AND `id_lang` = ' . (int) $id_lang . Shop::addSqlRestrictionOnLang('cl') . ')';
+            if (Shop::isFeatureActive() && Shop::getContext() == Shop::CONTEXT_SHOP)
+                $sql .= 'LEFT JOIN `' . _DB_PREFIX_ . 'category_shop` cs ON (c.`id_category` = cs.`id_category` AND cs.`id_shop` = ' . (int) $id_shop . ')';
+            $sql .= 'WHERE c.`id_category` = ' . (int) $id_current;
+            if (Shop::isFeatureActive() && Shop::getContext() == Shop::CONTEXT_SHOP)
+                $sql .= 'AND cs.`id_shop` = ' . (int) $context->shop->id;
+            $root_category = Category::getRootCategory();
+            if (Shop::isFeatureActive() && Shop::getContext() == Shop::CONTEXT_SHOP && (!Tools::isSubmit('id_category') || (int) Tools::getValue('id_category') == (int) $root_category->id || (int) $root_category->id == (int) $context->shop->id_category))
+                $sql .= 'AND c.`id_parent` != 0';
+            
+            $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+            
+            if (!$result || ($result[0]['id_category'] == $context->shop->id_category))
+                return $categories;
+            
+            if (isset($result[0]))
+                $categories = $result[0]['name'] . ' > ' . $categories;
+            
+            $id_current = $result[0]['id_parent'];
+        }
+    }
 }
 ?>
