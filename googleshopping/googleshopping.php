@@ -345,12 +345,17 @@ class GoogleShopping extends Module
     {
         $path_parts = pathinfo(__FILE__);
         
-        if (Configuration::get('GENERATE_FILE_IN_ROOT')) {
-            $generate_file_path = '../googleshopping-' . $lang['iso_code'] . '.xml';
+        if (Configuration::get('PS_MULTISHOP_FEATURE_ACTIVE')) {
+            $id_shop = $this->context->shop->id;
         } else {
-            $generate_file_path = $path_parts["dirname"] . '/file_exports/googleshopping-' . $lang['iso_code'] . '.xml';
+            $id_shop = 0;
         }
         
+        if (Configuration::get('GENERATE_FILE_IN_ROOT')) {
+            $generate_file_path = $path_parts["dirname"] .'/../../googleshopping-' . $lang['iso_code'] . '.xml';
+        } else {
+            $generate_file_path = $path_parts["dirname"] . '/file_exports/googleshopping-s'.$id_shop.'-'. $lang['iso_code'] . '.xml';
+        }
         
         //Google Shopping XML
         $xml = '<?xml version="1.0" encoding="UTF-8" ?>' . "\n";
@@ -360,11 +365,12 @@ class GoogleShopping extends Module
         $xml .= '<modified>' . date('Y-m-d') . 'T01:01:01Z</modified><author><name>' . Configuration::get('PS_SHOP_NAME') . '</name></author>' . "\n";
         
         $googleshoppingfile = fopen($generate_file_path, 'w');
-        fwrite($googleshoppingfile, pack("CCC", 0xef, 0xbb, 0xbf));
-        fwrite($googleshoppingfile, $xml);
         
         // add UTF-8 byte order mark
         fwrite($googleshoppingfile, pack("CCC", 0xef, 0xbb, 0xbf));
+        
+        //file header
+        fwrite($googleshoppingfile, $xml);
         
         $sql = 'SELECT * FROM ' . _DB_PREFIX_ . 'product p' . ' LEFT JOIN ' . _DB_PREFIX_ . 'product_lang pl ON p.id_product = pl.id_product' . ' WHERE p.active = 1 AND pl.id_lang=' . $lang['id_lang'];
         
@@ -414,11 +420,6 @@ class GoogleShopping extends Module
             $xml_googleshopping .= '<g:condition>new</g:condition>' . "\n"; // condition = new, used, refurbished
 
             
-            if (Configuration::get('MPN') && $product['supplier_reference'] != '') {
-                $xml_googleshopping .= '<g:mpn>' . $product['supplier_reference'] . '</g:mpn>';
-            }
-            
-
             $images       = Image::getImages($lang['id_lang'], $product['id_product']);
             $indexTabLang = 0;
             
@@ -456,11 +457,28 @@ class GoogleShopping extends Module
                 }
             }
             
+            
             // Brand
+            $identifierExists = false;
             if (Configuration::get('BRAND') && $product['id_manufacturer'] != '0') {
                 $xml_googleshopping .= '<g:brand>' . htmlspecialchars(Manufacturer::getNameById(intval($product['id_manufacturer'])), self::REPLACE_FLAGS, self::CHARSET, false) . '</g:brand>' . "\n";
+                $identifierExists = true;
             }
             
+            if (Configuration::get('MPN') && $product['supplier_reference'] != '') {
+                $xml_googleshopping .= '<g:mpn>' . $product['supplier_reference'] . '</g:mpn>';
+                $identifierExists = true;
+            }
+            
+            if (Configuration::get('GTIN') && $product['ean13'] != '') {
+                $xml_googleshopping .= '<g:gtin>' . $product['ean13'] . '</g:gtin>' . "\n";
+                $identifierExists = true;
+            }
+            
+            if (!$identifierExists) {
+                $xml_googleshopping .= '<g:identifier_exists>FALSE</g:identifier_exists>' . "\n";
+            }
+
             // Category google
             if (Configuration::get('GS_PRODUCT_TYPE_' . $lang['iso_code'])) {
                 $product_type = str_replace('>', '&gt;', Configuration::get('GS_PRODUCT_TYPE_' . $lang['iso_code']));
@@ -497,8 +515,8 @@ class GoogleShopping extends Module
             
             if (Configuration::get('GTIN') && $product['ean13'] != '') {
                 $xml_googleshopping .= '<g:gtin>' . $product['ean13'] . '</g:gtin>' . "\n";
-                
             }
+            
             $xml_googleshopping .= '</entry>' . "\n";
             
             // Write element
