@@ -21,7 +21,7 @@ class GoogleShopping extends Module
     
     function __construct()
     {
-        $this->name    = 'ps_googleshopping';
+        $this->name    = 'googleshopping';
         $this->tab     = 'export';
         $this->version = '1.2';
         $this->author  = '@jordi_martin';
