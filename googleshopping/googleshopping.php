@@ -150,9 +150,9 @@ class GoogleShopping extends Module
         
         foreach ($languages as $i => $lang) {
             if (Configuration::get('GENERATE_FILE_IN_ROOT') == 1) {
-                $get_file_url = $this->uri . 'googleshopping-' . $lang['iso_code'] . '.xml';
+                $get_file_url = $this->uri . $this->_getOutputFileName($lang['iso_code']);
             } else {
-                $get_file_url = $this->uri . 'modules/' . $this->getName() . '/file_exports/googleshopping-' . $lang['iso_code'] . '.xml';
+                $get_file_url = $this->uri . 'modules/' . $this->getName() . '/file_exports/'. $this->_getOutputFileName($lang['iso_code']);
             }
             
             $output .= '<a href="' . $get_file_url . '">' . $get_file_url . '</a><br />';
