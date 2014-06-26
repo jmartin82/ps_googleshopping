@@ -37,10 +37,20 @@ class GoogleShopping extends Module
             'min' => '1.5',
             'max' => '1.7'
         );
-        
+
         $this->uri = ToolsCore::getCurrentUrlProtocolPrefix() . $this->context->shop->domain_ssl . $this->context->shop->physical_uri;
     }
     
+    private function _getOutputFileName($lang) {
+         if (Configuration::get('PS_MULTISHOP_FEATURE_ACTIVE')) {
+            $id_shop = $this->context->shop->id;
+        } else {
+            $id_shop = 0;
+        }   
+        
+        return 'googleshopping-s'.$id_shop.'-'. $lang . '.xml';
+    }
+
     function install()
     {
         if (!parent::install()) {
@@ -83,8 +93,8 @@ class GoogleShopping extends Module
                 
             } else {
                 Configuration::updateValue('GENERATE_FILE_IN_ROOT', intval(0));
-                @mkdir($path_parts["dirname"] . '/file_exports', 0755, true);
-                @chmod($path_parts["dirname"] . '/file_exports', 0755);
+                @mkdir(dirname(__FILE__) . '/file_exports', 0755, true);
+                @chmod(dirname(__FILE__) . '/file_exports', 0755);
             }
             
             //Code EAN13
@@ -345,16 +355,10 @@ class GoogleShopping extends Module
     {
         $path_parts = pathinfo(__FILE__);
         
-        if (Configuration::get('PS_MULTISHOP_FEATURE_ACTIVE')) {
-            $id_shop = $this->context->shop->id;
-        } else {
-            $id_shop = 0;
-        }
-        
         if (Configuration::get('GENERATE_FILE_IN_ROOT')) {
-            $generate_file_path = $path_parts["dirname"] .'/../../googleshopping-' . $lang['iso_code'] . '.xml';
+            $generate_file_path = dirname(__FILE__) .'/../../'. $this->_getOutputFileName($lang['iso_code']);
         } else {
-            $generate_file_path = $path_parts["dirname"] . '/file_exports/googleshopping-s'.$id_shop.'-'. $lang['iso_code'] . '.xml';
+            $generate_file_path = dirname(__FILE__) . '/file_exports/'. $this->_getOutputFileName($lang['iso_code']);
         }
         
         //Google Shopping XML
@@ -459,23 +463,23 @@ class GoogleShopping extends Module
             
             
             // Brand
-            $identifierExists = false;
+            $identifier_exists = false;
             if (Configuration::get('BRAND') && $product['id_manufacturer'] != '0') {
                 $xml_googleshopping .= '<g:brand>' . htmlspecialchars(Manufacturer::getNameById(intval($product['id_manufacturer'])), self::REPLACE_FLAGS, self::CHARSET, false) . '</g:brand>' . "\n";
-                $identifierExists = true;
+                $identifier_exists = true;
             }
             
             if (Configuration::get('MPN') && $product['supplier_reference'] != '') {
                 $xml_googleshopping .= '<g:mpn>' . $product['supplier_reference'] . '</g:mpn>';
-                $identifierExists = true;
+                $identifier_exists = true;
             }
             
             if (Configuration::get('GTIN') && $product['ean13'] != '') {
                 $xml_googleshopping .= '<g:gtin>' . $product['ean13'] . '</g:gtin>' . "\n";
-                $identifierExists = true;
+                $identifier_exists = true;
             }
             
-            if (!$identifierExists) {
+            if (!$identifier_exists) {
                 $xml_googleshopping .= '<g:identifier_exists>FALSE</g:identifier_exists>' . "\n";
             }
 
