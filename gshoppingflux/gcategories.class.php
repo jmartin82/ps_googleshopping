@@ -160,7 +160,7 @@ class GCategories
 		return ($ret[0]['id_category']);
 	}
 	
-	public function getBreadcrumbCategory($id_category, $id_lang = null, $id_shop = null)
+	public static function getBreadcrumbCategory($id_category, $id_lang = null, $id_shop = null)
     {
         $context       = Context::getContext()->cloneContext();
 		$context->shop = clone ($context->shop);
