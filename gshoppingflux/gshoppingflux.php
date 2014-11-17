@@ -415,11 +415,10 @@ class GShoppingFlux extends Module
 	
 	public function getShopAttributes($id_lang, $id_shop)
 	{
-		$sql = 'SELECT agl.* FROM '._DB_PREFIX_.'attribute_group ag '
-			 . 'LEFT JOIN '._DB_PREFIX_.'attribute_group_lang agl ON (agl.id_attribute_group = ag.id_attribute_group) '
-			 . 'LEFT JOIN '._DB_PREFIX_.'attribute_group_shop ags ON (ags.id_attribute_group = ag.id_attribute_group) '
+		$sql = 'SELECT agl.* FROM '._DB_PREFIX_.'attribute_group_lang agl '
+			 . 'LEFT JOIN '._DB_PREFIX_.'attribute_group_shop ags ON (ags.id_attribute_group = agl.id_attribute_group) '
 			 . 'WHERE agl.id_lang = '.(int)$id_lang.' AND ags.id_shop = '.(int)$id_shop.' '
-			 . 'ORDER BY ag.id_attribute_group ASC;';		
+			 . 'ORDER BY ags.id_attribute_group ASC;';		
 		$ret = Db::getInstance()->executeS($sql);			
 		return ($ret);
 	}
@@ -468,9 +467,9 @@ class GShoppingFlux extends Module
 					  );
 		$features = array_merge($features, $this->getShopFeatures($id_lang, $id_shop));
 		$attributes = array(
-						array('id_attribute'=>'','name'=>$this->l('Product attribute doesn\'t exist'))
+						array('id_attribute_group'=>'','name'=>$this->l('Product attribute doesn\'t exist'))
 					  );
-		$attributes = array_merge($attributes, $this->getShopAttributes($id_lang, $id_shop));		
+		$attributes = array_merge($attributes, $this->getShopAttributes($id_lang, $id_shop));	
 		$descriptions = array(
 						array('id_desc'=>'short','name'=>$this->l('Short description')),
 						array('id_desc'=>'long','name'=>$this->l('Long description')),
@@ -1125,7 +1124,8 @@ class GShoppingFlux extends Module
 		
  		// Get active langs on shop
         $languages = Language::getLanguages();
-		$shops = Shop::getShops(true, null, true);     
+		$shops = Shop::getShops(true, null, true);
+		$output = '';
         
         foreach ($languages as $i => $lang) {
             if (Configuration::get('GS_GEN_FILE_IN_ROOT') == 1) {
@@ -1637,7 +1637,7 @@ class GShoppingFlux extends Module
 			
 			// Price(s)
 			$currency = new Currency((int)Configuration::get('PS_CURRENCY_DEFAULT'));
-			if(!combination)
+			if(!$combination)
 				$price = round($p->getPriceStatic($product['id_product'], true),2);
 			else
 				$price = round($p->getPriceStatic($product['id_product'], true, $combination),2);
@@ -1645,7 +1645,7 @@ class GShoppingFlux extends Module
 			$price = number_format($price,2,'.',' ');
 			$price_without_reduct = round($p->getPriceWithoutReduct(false),2);
 			$price_without_reduct = number_format($price_without_reduct,2,'.',' ');
-			if ((float)($price) < (float)($price_no_discount)) {
+			if ((float)($price) < (float)($price_without_reduct)) {
 				$xml_googleshopping .='<g:price>'.$price_without_reduct.' '. $currency->iso_code.'</g:price>'."\n";
 				$xml_googleshopping .='<g:sale_price>'.$price.' '. $currency->iso_code.'</g:sale_price>'."\n";
 			} else {
