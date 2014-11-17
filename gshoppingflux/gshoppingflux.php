@@ -1,0 +1,1645 @@
+<?php 
+/* Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+
+//   http://www.apache.org/licenses/LICENSE-2.0
+
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+*/ 
+
+require (dirname(__FILE__).'/gcategories.class.php');
+
+class GShoppingFlux extends Module
+{
+	private $_html = '';
+	private $user_groups;
+
+	const CHARSET = 'UTF-8';
+    const REPLACE_FLAGS = ENT_COMPAT;
+	
+	/*
+	 * Pattern for matching config values
+	 */
+	private $pattern = '/^([A-Z_]*)[0-9]+/';
+
+	/*
+	 * Name of the controller
+	 * Used to set item selected or not in top menu
+	 */
+	private $page_name = '';
+
+ 
+    function __construct()
+    { 
+        $this->name    = 'gshoppingflux';
+        $this->tab     = 'smart_shopping';
+        $this->version = '1.5';
+        $this->author  = 'DiMooz, from GoogleShopping module by Jordi (jordimartin@gmail.com).';
+        
+		$this->bootstrap = true;
+        parent::__construct();
+        
+        $this->page        = basename(__FILE__, '.php');
+        $this->displayName = $this->l('Google Shopping Flux');
+        $this->description = $this->l('Export your products to Google Merchant Center, easily.');
+        
+        $this->need_instance          = 0;
+        $this->ps_versions_compliancy = array('min' => '1.5','max' => '1.7');
+
+        $this->uri = ToolsCore::getCurrentUrlProtocolPrefix() . $this->context->shop->domain_ssl . $this->context->shop->physical_uri;
+		
+		$this->categories_values = array();
+    }
+
+    public function install($delete_params = true)
+    {
+        if (!parent::install() ||
+			!$this->registerHook('actionObjectCategoryAddAfter') ||
+			!$this->registerHook('actionObjectCategoryDeleteAfter') ||
+			!$this->registerHook('actionShopDataDuplication') ||
+			!$this->installDb() ){
+            return false;
+        }
+				
+		$shops = Shop::getShops(true, null, true);	
+				
+		foreach ($shops as $shop_id)
+		{
+			$shop_group_id = Shop::getGroupFromShop($shop_id);
+			
+			if (!$this->initDb((int)$shop_id))return false;
+		
+			if ($delete_params)
+				if (!Configuration::updateValue('GS_DESCRIPTION', 'short', false, (int)$shop_group_id, (int)$shop_id)
+				 || !Configuration::updateValue('GS_SHIPPING_PRICE', '0.00', false, (int)$shop_group_id, (int)$shop_id)
+				 || !Configuration::updateValue('GS_SHIPPING_COUNTRY', 'EN', false, (int)$shop_group_id, (int)$shop_id)
+				 || !Configuration::updateValue('GS_IMG_TYPE', 'large_default', false, (int)$shop_group_id, (int)$shop_id)
+				 || !Configuration::updateValue('GS_MPN_TYPE', 'supplier_reference', false, (int)$shop_group_id, (int)$shop_id)
+				 || !Configuration::updateValue('GS_GENDER', '', false, (int)$shop_group_id, (int)$shop_id)
+				 || !Configuration::updateValue('GS_AGE_GROUP', '', false, (int)$shop_group_id, (int)$shop_id)
+				 || !Configuration::updateValue('GS_COLOR', '', false, (int)$shop_group_id, (int)$shop_id)
+				 || !Configuration::updateValue('GS_SIZE', '', false, (int)$shop_group_id, (int)$shop_id)
+				 || !Configuration::updateValue('GS_EXPORT_MIN_PRICE', '0.00', false, (int)$shop_group_id, (int)$shop_id)
+				 || !Configuration::updateValue('GS_NO_GTIN', '1', false, (int)$shop_group_id, (int)$shop_id)
+				 || !Configuration::updateValue('GS_NO_BRAND', '1', false, (int)$shop_group_id, (int)$shop_id)
+				 || !Configuration::updateValue('GS_ID_EXISTS_TAG', '1', false, (int)$shop_group_id, (int)$shop_id)
+				 || !Configuration::updateValue('GS_EXPORT_NAP', '0', false, (int)$shop_group_id, (int)$shop_id)
+				 || !Configuration::updateValue('GS_QUANTITY', '1', false, (int)$shop_group_id, (int)$shop_id)
+				 || !Configuration::updateValue('GS_FEATURED_PRODUCTS', '1', false, (int)$shop_group_id, (int)$shop_id)
+				 || !Configuration::updateValue('GS_GEN_FILE_IN_ROOT', '1', false, (int)$shop_group_id, (int)$shop_id)
+				)
+					return false;
+				
+		}
+		
+		// Get generation file route
+		if (!is_dir(dirname(__FILE__) . '/file_exports'))
+			@mkdir(dirname(__FILE__) . '/file_exports', 0755, true);
+					
+		@chmod(dirname(__FILE__) . '/file_exports', 0755);
+		
+        return true;
+    }
+
+	public function installDb()
+	{
+		return (Db::getInstance()->execute('
+		CREATE TABLE IF NOT EXISTS `'._DB_PREFIX_.'gshoppingflux` (
+			`id_gcategory` INT(11) UNSIGNED NOT NULL PRIMARY KEY,
+			`export` INT(11) UNSIGNED NOT NULL,
+			`condition` VARCHAR( 12 ) NOT NULL,
+			`availability` VARCHAR( 12 ) NOT NULL,
+			`gender` VARCHAR( 8 ) NOT NULL,
+			`age_group` VARCHAR( 8 ) NOT NULL,
+			`id_shop` INT(11) UNSIGNED NOT NULL,
+			INDEX (`id_shop`)
+		) ENGINE = '._MYSQL_ENGINE_.' CHARACTER SET utf8 COLLATE utf8_general_ci;') &&
+			Db::getInstance()->execute('
+			 CREATE TABLE IF NOT EXISTS `'._DB_PREFIX_.'gshoppingflux_lang` (
+			`id_gcategory` INT(11) UNSIGNED NOT NULL,
+			`id_lang` INT(11) UNSIGNED NOT NULL,
+			`id_shop` INT(11) UNSIGNED NOT NULL,
+			`gcategory` VARCHAR( 255 ) NOT NULL,
+			INDEX ( `id_gcategory` , `id_lang`, `id_shop`)
+		) ENGINE = '._MYSQL_ENGINE_.' CHARACTER SET utf8 COLLATE utf8_general_ci;'));
+	}
+
+	public function initDb($id_shop)
+	{		
+		$languages = $this->context->controller->getLanguages();
+		$id_lang = (int)Context::getContext()->language->id;
+		$shops = Shop::getShops(true, null, true);	
+		$str = array();
+		$root_cats = array();
+		
+		foreach ($shops as $ks => $shop_id)
+		{
+			$root_cats[$shop_id] = GCategories::getRoot($shop_id);
+		}		
+		
+		$categs = Db::getInstance()->executeS('
+			SELECT c.id_category, c.id_parent, c.active 
+			FROM '._DB_PREFIX_.'category c
+			INNER JOIN `'._DB_PREFIX_.'category_shop` cs ON (cs.id_category=c.id_category AND cs.id_shop='.(int)$id_shop.')
+			ORDER BY c.level_depth ASC, cs.position ASC;');
+
+		foreach ($categs as $kc => $cat)
+		{		
+			foreach($languages as $key => $lang)
+				$str[$lang['id_lang']] = '';				
+			$condition = '';				
+			$availability = '';				
+			$gender = '';
+			$age_group = '';					
+			
+			if(!count(GCategories::get($cat['id_category'],$id_lang,$id_shop)) && ($cat['id_category']!=1) ){
+				foreach ($root_cats as $shop_id => $root_id)
+				{
+					if($root_id == $cat['id_category']){
+						foreach($languages as $key => $lang)
+							$str[$lang['id_lang']] = $this->l('Google Category Example > Sub Google Category Example');
+						//$condition = '';
+						//$availability = '';
+						//$gender = '';
+						//$age_group = '';
+						GCategories::add($cat['id_category'], $str, $cat['active'], $condition, $availability, $gender, $age_group, $shop_id);
+						continue 2;
+					}
+				}
+				GCategories::add($cat['id_category'], $str, $cat['active'], $condition, $availability, $gender, $age_group, $id_shop);					
+			}
+		}
+		return true;
+	}
+	
+	public function uninstall($delete_params = true)
+	{
+		if (!parent::uninstall())
+			return false;
+
+		if ($delete_params)
+			if (!$this->uninstallDB() 
+			 || !Configuration::deleteByName('GS_DESCRIPTION')
+			 || !Configuration::deleteByName('GS_SHIPPING_PRICE')
+			 || !Configuration::deleteByName('GS_SHIPPING_COUNTRY')
+			 || !Configuration::deleteByName('GS_IMG_TYPE')
+			 || !Configuration::deleteByName('GS_MPN_TYPE')
+			 || !Configuration::deleteByName('GS_GENDER')
+			 || !Configuration::deleteByName('GS_AGE_GROUP')
+			 || !Configuration::deleteByName('GS_COLOR')
+			 || !Configuration::deleteByName('GS_SIZE')
+			 || !Configuration::deleteByName('GS_EXPORT_MIN_PRICE')
+			 || !Configuration::deleteByName('GS_NO_GTIN')
+			 || !Configuration::deleteByName('GS_NO_BRAND')
+			 || !Configuration::deleteByName('GS_ID_EXISTS_TAG')
+			 || !Configuration::deleteByName('GS_EXPORT_NAP')
+			 || !Configuration::deleteByName('GS_QUANTITY')
+			 || !Configuration::deleteByName('GS_FEATURED_PRODUCTS')
+			 || !Configuration::deleteByName('GS_GEN_FILE_IN_ROOT')
+			)
+				return false;
+
+		return true;
+	}
+
+	private function uninstallDb()
+	{
+		Db::getInstance()->execute('DROP TABLE `'._DB_PREFIX_.'gshoppingflux`');
+		Db::getInstance()->execute('DROP TABLE `'._DB_PREFIX_.'gshoppingflux_lang`');
+		return true;
+	}
+
+	public function reset()
+	{
+		if (!$this->uninstall(false))
+			return false;
+		if (!$this->install(false))
+			return false;
+
+		return true;
+	}
+	
+	public function hookActionObjectCategoryAddAfter($params)
+	{
+		$shops = Shop::getShops(true, null, true);	
+		foreach ($shops as $id_shop)
+			$this->initDb($id_shop);
+	}
+	
+	public function hookActionObjectCategoryDeleteAfter($params)
+	{
+		$shops = Shop::getShops(true, null, true);	
+		foreach ($shops as $id_shop)
+			$this->initDb($id_shop);
+	}
+		
+	public function hookActionShopDataDuplication($params)
+	{
+		$gcategories = Db::getInstance()->executeS('
+			SELECT *
+			FROM '._DB_PREFIX_.'gshoppingflux
+			WHERE id_shop = '.(int)$params['old_id_shop']
+			);
+
+		foreach($gcategories as $id => $gcateg)
+		{
+			Db::getInstance()->execute('
+				INSERT IGNORE INTO '._DB_PREFIX_.'gshoppingflux (id_gcategory, id_shop)
+				VALUES (null, '.(int)$params['new_id_shop'].')');
+
+			$gcategories[$id]['new_id_gcategory'] = Db::getInstance()->Insert_ID();
+		}
+
+		foreach($gcategories as $id => $gcateg)
+		{
+			$lang = Db::getInstance()->executeS('
+					SELECT id_lang, '.(int)$params['new_id_shop'].', gcategory
+					FROM '._DB_PREFIX_.'gshoppingflux_lang
+					WHERE id_gcategory = '.(int)$gcateg['id_gcategory'].' AND id_shop = '.(int)$params['old_id_shop']);
+
+			foreach($lang as $l)
+				Db::getInstance()->execute('
+					INSERT IGNORE INTO '._DB_PREFIX_.'gshoppingflux_lang (id_gcategory, id_lang, id_shop, gcategory)
+					VALUES ('.(int)$gcateg['new_id_gcategory'].', '.(int)$l['id_lang'].', '.(int)$params['new_id_shop'].', '.(int)$l['gcategory'].')');
+		}
+	}
+
+	public function getContent()
+	{
+		$this->context->controller->addjQueryPlugin('hoverIntent');
+
+		$id_lang = (int)Context::getContext()->language->id;
+		$languages = $this->context->controller->getLanguages();
+		$default_language = (int)Configuration::get('PS_LANG_DEFAULT');
+		$shops = Shop::getShops(true, null, true);
+		$shop_id = Shop::getContextShopID();
+		$shop_group_id = Shop::getGroupFromShop($shop_id);
+
+		$gcategories = Tools::getValue('gcategory') ? array_filter(Tools::getValue('gcategory'), 'strlen') : array();
+		
+		if (count($shops) > 1 && !isset($shop_id)) {
+			$this->_html .= $this->getWarningMultishopHtml();
+			return $this->_html;
+		}
+
+		if (Shop::isFeatureActive())
+			$this->_html .= $this->getCurrentShopInfoMsg();
+
+		if (Tools::isSubmit('submitFluxOptions'))
+		{
+			$errors_update_shops = array();
+			$updated = true;
+
+			$updated &= Configuration::updateValue('GS_DESCRIPTION', Tools::getValue('description'), false, (int)$shop_group_id, (int)$shop_id);
+			$updated &= Configuration::updateValue('GS_SHIPPING_PRICE', (float)Tools::getValue('shipping_price'), false, (int)$shop_group_id, (int)$shop_id);
+			$updated &= Configuration::updateValue('GS_SHIPPING_COUNTRY', Tools::getValue('shipping_country'), false, (int)$shop_group_id, (int)$shop_id);
+			$updated &= Configuration::updateValue('GS_IMG_TYPE', Tools::getValue('img_type'), false, (int)$shop_group_id, (int)$shop_id);
+			$updated &= Configuration::updateValue('GS_MPN_TYPE', Tools::getValue('mpn_type'), false, (int)$shop_group_id, (int)$shop_id);
+			$updated &= Configuration::updateValue('GS_GENDER', Tools::getValue('gender'), false, (int)$shop_group_id, (int)$shop_id);
+			$updated &= Configuration::updateValue('GS_AGE_GROUP', Tools::getValue('age_group'), false, (int)$shop_group_id, (int)$shop_id);
+			$updated &= Configuration::updateValue('GS_COLOR', Tools::getValue('color'), false, (int)$shop_group_id, (int)$shop_id);
+			$updated &= Configuration::updateValue('GS_SIZE', Tools::getValue('size'), false, (int)$shop_group_id, (int)$shop_id);
+			$updated &= Configuration::updateValue('GS_EXPORT_MIN_PRICE', (float)Tools::getValue('export_min_price'), false, (int)$shop_group_id, (int)$shop_id);
+			$updated &= Configuration::updateValue('GS_NO_GTIN', (bool)Tools::getValue('no_gtin'), false, (int)$shop_group_id, (int)$shop_id);
+			$updated &= Configuration::updateValue('GS_NO_BRAND', (bool)Tools::getValue('no_brand'), false, (int)$shop_group_id, (int)$shop_id);
+			$updated &= Configuration::updateValue('GS_ID_EXISTS_TAG', (bool)Tools::getValue('id_exists_tag'), false, (int)$shop_group_id, (int)$shop_id);
+			$updated &= Configuration::updateValue('GS_EXPORT_NAP', (bool)Tools::getValue('export_nap'), false, (int)$shop_group_id, (int)$shop_id);
+			$updated &= Configuration::updateValue('GS_QUANTITY', (bool)Tools::getValue('quantity'), false, (int)$shop_group_id, (int)$shop_id);
+			$updated &= Configuration::updateValue('GS_FEATURED_PRODUCTS', (bool)Tools::getValue('featured_products'), false, (int)$shop_group_id, (int)$shop_id);
+			$updated &= Configuration::updateValue('GS_GEN_FILE_IN_ROOT', (bool)Tools::getValue('gen_file_in_root'), false, (int)$shop_group_id, (int)$shop_id);
+
+			if (!$updated)
+			{
+				$shop = new Shop($shop_id);
+				$errors_update_shops[] =  $shop->name;
+			}
+			
+			$count = $this->generateShopFileList((int)$shop_id);
+		
+			// Get active langs on shop
+			$languages = Language::getLanguages();
+		
+			$confirm = '';
+			if (!count($errors_update_shops)){
+				$confirm = $this->l('The settings have been updated.');
+				foreach ($languages as $i => $lang) {
+					if (Configuration::get('GS_GEN_FILE_IN_ROOT', 0, $shop_group_id, $shop_id) == 1) {
+						$get_file_url = $this->uri . $this->_getOutputFileName($lang['iso_code'], $id_shop);
+					} else {
+						$get_file_url = $this->uri . 'modules/' . $this->getName() . '/file_exports/'. $this->_getOutputFileName($lang['iso_code'], $shop_id);
+					}
+					$confirm .= '<br /> <a href="'.$get_file_url.'" target="_blank">'.$get_file_url . '</a> : '.$count[$i].' '.$this->l('products exported.');			
+				}
+				$this->_html .= $this->displayConfirmation(html_entity_decode($confirm));
+			}else{
+				$this->_html .= $this->displayError(sprintf($this->l('Unable to update settings for the following shop: %s'), implode(', ', $errors_update_shops)));
+			}
+			
+		}
+		elseif (Tools::isSubmit('updateCategory'))
+		{
+			$id_gcategory = (int)Tools::getValue('id_gcategory', 0);
+			$export = (int)Tools::getValue('export_active_on', 0);
+			$condition = Tools::getValue('condition');
+			$availability = Tools::getValue('availability');
+			$gender = Tools::getValue('gender');
+			$age_group = Tools::getValue('age_group');
+			$id_shop = (int)Shop::getContextShopID();
+			 
+			if (Tools::isSubmit('updatecateg'))
+			{
+				$gcateg = array();
+
+				foreach (Language::getLanguages(false) as $lang)
+				{
+					$gcateg[$lang['id_lang']] = Tools::getValue('gcategory_'.(int)$lang['id_lang']);
+				}
+
+				GCategories::update($id_gcategory, $gcateg, $export, $condition, $availability, $gender, $age_group, $id_shop);
+				$this->_html .= $this->displayConfirmation($this->l('Google category has been updated.'));
+			}
+		}
+		
+		if ( ( Tools::getIsset('updategshoppingflux') || Tools::getIsset('statusgshoppingflux') )
+			 && !Tools::getValue('updategshoppingflux') )
+			$this->_html .= $this->renderAddForm();
+
+		$this->_html .= $this->renderForm();
+
+		$gcategories = GCategories::gets((int)$id_lang, null, (int)$shop_id);
+
+		if (!count($gcategories))
+			return $this->_html;
+
+		$this->_html .= $this->renderList();
+		$this->_html .= $this->renderInfo();
+		return $this->_html;
+	}
+
+	private function getWarningMultishopHtml()
+	{
+		return '<p class="alert alert-warning">'.
+					$this->l('You cannot manage Google categories from a "All Shops" or a "Group Shop" context, select directly the shop you want to edit').
+				'</p>';
+	}
+
+	private function getCurrentShopInfoMsg()
+	{
+		$shop_info = null;
+
+		if (Shop::getContext() == Shop::CONTEXT_SHOP)
+			$shop_info = sprintf($this->l('The modifications will be applied to shop: %s'), $this->context->shop->name);
+		else if (Shop::getContext() == Shop::CONTEXT_GROUP)
+			$shop_info = sprintf($this->l('The modifications will be applied to this group: %s'), Shop::getContextShopGroup()->name);
+		else
+			$shop_info = $this->l('The modifications will be applied to all shops');
+
+		return '<div class="alert alert-info">'.
+					$shop_info.
+				'</div>';
+	}
+
+	public function getShopFeatures($id_lang, $id_shop)
+	{
+		$sql = 'SELECT fl.* FROM '._DB_PREFIX_.'feature f '
+			 . 'LEFT JOIN '._DB_PREFIX_.'feature_lang fl ON (fl.id_feature = f.id_feature) '
+			 . 'LEFT JOIN '._DB_PREFIX_.'feature_shop fs ON (fs.id_feature = f.id_feature) '
+			 . 'WHERE fl.id_lang = '.(int)$id_lang.' AND fs.id_shop = '.(int)$id_shop.' '
+			 . 'ORDER BY f.id_feature ASC;';		
+		$ret = Db::getInstance()->executeS($sql);		
+		return ($ret);
+	}
+	
+	public function getShopAttributes($id_lang, $id_shop)
+	{
+		$sql = 'SELECT agl.* FROM '._DB_PREFIX_.'attribute_group ag '
+			 . 'LEFT JOIN '._DB_PREFIX_.'attribute_group_lang agl ON (agl.id_attribute_group = ag.id_attribute_group) '
+			 . 'LEFT JOIN '._DB_PREFIX_.'attribute_group_shop ags ON (ags.id_attribute_group = ag.id_attribute_group) '
+			 . 'WHERE agl.id_lang = '.(int)$id_lang.' AND ags.id_shop = '.(int)$id_shop.' '
+			 . 'ORDER BY ag.id_attribute_group ASC;';		
+		$ret = Db::getInstance()->executeS($sql);			
+		return ($ret);
+	}
+	
+	public function getProductFeatures($id_product, $id_lang, $id_shop)
+	{
+		$sql = 'SELECT fl.*, fv.value FROM '._DB_PREFIX_.'feature_product fp '
+			 . 'LEFT JOIN '._DB_PREFIX_.'feature_lang fl ON (fl.id_feature = fp.id_feature) '
+			 . 'LEFT JOIN '._DB_PREFIX_.'feature_shop fs ON (fs.id_feature = fp.id_feature) '
+			 . 'LEFT JOIN '._DB_PREFIX_.'feature_value_lang fv ON (fv.id_feature_value = fp.id_feature_value AND fv.id_lang = fl.id_lang) '
+			 . 'WHERE fp.id_product = '.(int)$id_product.' AND fl.id_lang = '.(int)$id_lang.' AND fs.id_shop = '.(int)$id_shop.' '
+			 . 'ORDER BY fp.id_feature ASC;';		
+		$ret = Db::getInstance()->executeS($sql);		
+		return ($ret);
+	}
+	
+	public function getProductAttributes($id_product, $id_lang, $id_shop)
+	{
+		$sql = 'SELECT pal.* FROM '._DB_PREFIX_.'product_attribute pa '
+			 . 'LEFT JOIN '._DB_PREFIX_.'attribute_lang pal ON (pal.id_attribute = pa.id_product_attribute) '
+			 . 'LEFT JOIN '._DB_PREFIX_.'attribute_shop pas ON (pas.id_attribute = pa.id_product_attribute) '
+			 . 'LEFT JOIN '._DB_PREFIX_.'product_attribute_combination pac ON (pac.id_product_attribute = pa.id_product_attribute) '
+			 . 'WHERE pa.id_product_attribute = '.(int)$id_product.' AND pal.id_lang = '.(int)$id_lang.' AND pas.id_shop = '.(int)$id_shop.' '
+			 . 'ORDER BY pa.id_product_attribute ASC;';		
+		$ret = Db::getInstance()->executeS($sql);	
+		return ($ret);
+	}
+	
+	public function renderForm()
+	{
+		//$shops = Shop::getContextListShopID();
+		$shops = Shop::getShops(true, null, true);
+		$context = Context::getContext();
+		$id_lang = $context->language->id;
+		$id_shop = $context->shop->id;
+		$img_types = ImageType::getImagesTypes('products');
+		
+		$features = array(
+						array('id_feature'=>'','name'=>$this->l('Product feature doesn\'t exist'))
+					  );
+		$features = array_merge($features, $this->getShopFeatures($id_lang, $id_shop));
+		$attributes = array(
+						array('id_attribute'=>'','name'=>$this->l('Product feature doesn\'t exist'))
+					  );
+		$attributes = array_merge($attributes, $this->getShopAttributes($id_lang, $id_shop));		
+		$descriptions = array(
+						array('id_desc'=>'short','name'=>$this->l('Short description')),
+						array('id_desc'=>'long','name'=>$this->l('Long description')),
+						array('id_desc'=>'meta','name'=>$this->l('Meta description'))
+					  );	
+		$mpn_types	 = array(
+						array('id_mpn'=>'reference','name'=>$this->l('Reference')),
+						array('id_mpn'=>'supplier_reference','name'=>$this->l('Supplier reference'))
+					  );
+		$form_desc = html_entity_decode($this->l('Please visit and read the <a href="http://support.google.com/merchants/answer/188494" target="_blank">Google Shopping Products Feed Specification</a> if you don\'t know how to configure this form.'));
+		
+		$fields_form = array(
+			'form' => array(
+				'legend' => array(
+					'title' => $this->l('Parameters'),
+					'icon' => 'icon-cogs'
+				),
+				'input' => array(
+					array(
+						'type' => 'select',
+						'label' => $this->l('Description type'),
+						'name' => 'description',
+						'default_value' => $helper->tpl_vars['fields_value']['description'],
+						'options' => array(
+							//'default' => array('value' => 0, 'label' => $this->l('Choose description type')),
+							'query' => $descriptions,
+							'id' => 'id_desc',
+							'name' => 'name'
+						)
+					),
+					array(
+						'type' => 'text',
+						'label' => $this->l('Shipping price'),
+						'name' => 'shipping_price',
+						'class' => 'fixed-width-xs',
+						'prefix' => $this->context->currency->sign,
+					),
+					array(
+						'type' => 'text',
+						'label' => $this->l('Shipping country'),
+						'name' => 'shipping_country',
+						'class' => 'fixed-width-xs',
+						//'suffix' => strtoupper($this->context->language->iso_code),
+					),
+					array(
+						'type' => 'select',
+						'label' => $this->l('Images type'),
+						'name' => 'img_type',
+						'default_value' => $helper->tpl_vars['fields_value']['img_type'],
+						'options' => array(
+							//'default' => array('value' => 0, 'label' => $this->l('Choose image type')),
+							'query' => $img_types,
+							'id' => 'name',
+							'name' => 'name'
+						)
+					),
+					array(
+						'type' => 'select',
+						'label' => $this->l('Manufacturers References type (MPN)'),
+						'name' => 'mpn_type',
+						'default_value' => $helper->tpl_vars['fields_value']['mpn_type'],
+						'options' => array(
+							'query' => $mpn_types,
+							'id' => 'id_mpn',
+							'name' => 'name'
+						)
+					),
+					array(
+						'type' => 'text',
+						'label' => $this->l('Minimum product price'),
+						'name' => 'export_min_price',
+						'class' => 'fixed-width-xs',
+						'prefix' => $this->context->currency->sign,
+						'desc' => $this->l('Products at lower price are not exported. Enter 0.00 for no use.'),   
+         				'required' => true
+					),
+					array(
+						'type' => 'select',
+						'label' => $this->l('Products gender attribute'),
+						'name' => 'gender',
+						'default_value' => $helper->tpl_vars['fields_value']['gender'],
+						'options' => array(
+							'query' => $features,
+							'id' => 'id_feature',
+							'name' => 'name'
+						)
+					),
+					array(
+						'type' => 'select',
+						'label' => $this->l('Products age group attribute'),
+						'name' => 'age_group',
+						'default_value' => $helper->tpl_vars['fields_value']['age_group'],
+						'options' => array(
+							'query' => $features,
+							'id' => 'id_feature',
+							'name' => 'name'
+						)
+					),
+					/*
+					array(
+						'type' => 'select',
+						'label' => $this->l('Products color attribute'),
+						'name' => 'color',
+						'default_value' => $helper->tpl_vars['fields_value']['color'],
+						'options' => array(
+							'query' => $attributes,
+							'id' => 'id_attribute_group',
+							'name' => 'name'
+						)
+					),
+					array(
+						'type' => 'select',
+						'label' => $this->l('Products size attribute'),
+						'name' => 'size',
+						'default_value' => $helper->tpl_vars['fields_value']['size'],
+						'options' => array(
+							'query' => $attributes,
+							'id' => 'id_attribute_group',
+							'name' => 'name'
+						)
+					),
+					*/
+					array(
+						'type' => 'switch',
+						'label' => $this->l('Export products with no GTIN code'),
+						'name' => 'no_gtin',
+						'is_bool' => true,
+						'values' => array(
+							array(
+								'id' => 'active_on',
+								'value' => 1,
+								'label' => $this->l('Enabled')
+							),
+							array(
+								'id' => 'active_off',
+								'value' => 0,
+								'label' => $this->l('Disabled')
+							)
+						),
+					),
+					array(
+						'type' => 'switch',
+						'label' => $this->l('Export products with no brand'),
+						'name' => 'no_brand',
+						'is_bool' => true,
+						'values' => array(
+							array(
+								'id' => 'active_on',
+								'value' => 1,
+								'label' => $this->l('Enabled')
+							),
+							array(
+								'id' => 'active_off',
+								'value' => 0,
+								'label' => $this->l('Disabled')
+							)
+						)
+					),
+					array(
+						'type' => 'switch',
+						'label' => $this->l('Set <identifier_exists> tag to FALSE'),
+						'name' => 'id_exists_tag',
+						'is_bool' => true,
+						'values' => array(
+							array(
+								'id' => 'active_on',
+								'value' => 1,
+								'label' => $this->l('Enabled')
+							),
+							array(
+								'id' => 'active_off',
+								'value' => 0,
+								'label' => $this->l('Disabled')
+							)
+						)
+					),
+					array(
+						'type' => 'switch',
+						'label' => $this->l('Export non-available products'),
+						'name' => 'export_nap',
+						'is_bool' => true,
+						'values' => array(
+							array(
+								'id' => 'active_on',
+								'value' => 1,
+								'label' => $this->l('Enabled')
+							),
+							array(
+								'id' => 'active_off',
+								'value' => 0,
+								'label' => $this->l('Disabled')
+							)
+						)
+					),
+					array(
+						'type' => 'switch',
+						'label' => $this->l('Export product quantity'),
+						'name' => 'quantity',
+						'is_bool' => true,
+						'values' => array(
+							array(
+								'id' => 'active_on',
+								'value' => 1,
+								'label' => $this->l('Enabled')
+							),
+							array(
+								'id' => 'active_off',
+								'value' => 0,
+								'label' => $this->l('Disabled')
+							)
+						)
+					),
+					array(
+						'type' => 'switch',
+						'label' => $this->l('Featured products'),
+						'name' => 'featured_products',
+						'is_bool' => true,
+						'values' => array(
+							array(
+								'id' => 'active_on',
+								'value' => 1,
+								'label' => $this->l('Enabled')
+							),
+							array(
+								'id' => 'active_off',
+								'value' => 0,
+								'label' => $this->l('Disabled')
+							)
+						)
+					),
+					array(
+						'type' => 'switch',
+						'label' => $this->l('Generate the files to the root of the site'),
+						'name' => 'gen_file_in_root',
+						'is_bool' => true,
+						'values' => array(
+							array(
+								'id' => 'active_on',
+								'value' => 1,
+								'label' => $this->l('Enabled')
+							),
+							array(
+								'id' => 'active_off',
+								'value' => 0,
+								'label' => $this->l('Disabled')
+							)
+						)
+					)					
+				),
+				'description' => $form_desc,
+				'submit' => array(
+					'name' => 'submitFluxOptions',
+					'title' => $this->l('Save & Export')
+				)
+			)
+		);
+		
+		if (count($shops) != 1){
+			//$fields_form[] = array('info' => '<div class="alert alert-warning">'.$this->l('All active products combinations quantities will be changed').'</div>');
+		}
+
+		$helper = new HelperForm();
+		$helper->show_toolbar = true;
+		$helper->table =  $this->table;
+		$lang = new Language((int)Configuration::get('PS_LANG_DEFAULT'));
+		$helper->default_form_language = $lang->id;
+		$helper->allow_employee_form_lang = Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG') ? Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG') : 0;
+		$this->fields_form = array();
+		$helper->module = $this;
+		$helper->identifier = $this->identifier;
+		$helper->currentIndex = $this->context->link->getAdminLink('AdminModules', false).'&configure='.$this->name.'&tab_module='.$this->tab.'&module_name='.$this->name;
+		$helper->token = Tools::getAdminTokenLite('AdminModules');
+		$helper->tpl_vars = array(
+			'fields_value' => $this->getConfigFieldsValues($this->context->shop->id),
+			'languages' => $this->context->controller->getLanguages(),
+			'id_language' => $this->context->language->id
+		);
+		
+		return $helper->generateForm(array($fields_form));
+	}
+	
+	public function getConfigFieldsValues($shop_id)
+	{
+		$shop_group_id = Shop::getGroupFromShop($shop_id);
+		$description = 'short';
+		$shipping_price = 0;
+		$shipping_country = 'EN';
+		$img_type = 'large_default';
+		$mpn_type = '';
+		$gender = '';
+		$age_group = '';
+		$color = '';
+		$size = '';
+		$export_min_price = 0;
+		$no_gtin = true;
+		$no_brand = true;
+		$id_exists_tag = true;
+		$export_nap = true;
+		$quantity = true;
+		$featured_products = true;
+		$gen_file_in_root = true;
+
+		$description = Configuration::get('GS_DESCRIPTION', 0, $shop_group_id, $shop_id);
+		$shipping_price = (float)Configuration::get('GS_SHIPPING_PRICE', 0, $shop_group_id, $shop_id);
+		$shipping_country = Configuration::get('GS_SHIPPING_COUNTRY', 0, $shop_group_id, $shop_id);
+		$img_type = Configuration::get('GS_IMG_TYPE', 0, $shop_group_id, $shop_id);
+		$mpn_type = Configuration::get('GS_MPN_TYPE', 0, $shop_group_id, $shop_id);
+		$gender = Configuration::get('GS_GENDER', 0, $shop_group_id, $shop_id);
+		$age_group = Configuration::get('GS_AGE_GROUP', 0, $shop_group_id, $shop_id);
+		$color = Configuration::get('GS_COLOR', 0, $shop_group_id, $shop_id);
+		$size = Configuration::get('GS_SIZE', 0, $shop_group_id, $shop_id);
+		$export_min_price = (float)Configuration::get('GS_EXPORT_MIN_PRICE', 0, $shop_group_id, $shop_id);
+		$no_gtin &= (bool)Configuration::get('GS_NO_GTIN', 0, $shop_group_id, $shop_id);
+		$no_brand &= (bool)Configuration::get('GS_NO_BRAND', 0, $shop_group_id, $shop_id);
+		$id_exists_tag &= (bool)Configuration::get('GS_ID_EXISTS_TAG', 0, $shop_group_id, $shop_id);
+		$export_nap &= (bool)Configuration::get('GS_EXPORT_NAP', 0, $shop_group_id, $shop_id);
+		$quantity &= (bool)Configuration::get('GS_QUANTITY', 0, $shop_group_id, $shop_id);
+		$featured_products &= (bool)Configuration::get('GS_FEATURED_PRODUCTS', 0, $shop_group_id, $shop_id);
+		$gen_file_in_root &= (bool)Configuration::get('GS_GEN_FILE_IN_ROOT', 0, $shop_group_id, $shop_id);
+		
+		return array(
+			'description' => $description,
+			'shipping_price' => (float)$shipping_price,
+			'shipping_country' => $shipping_country,
+			'img_type' => $img_type,
+			'mpn_type' => $mpn_type,
+			'gender' => $gender,
+			'age_group' => $age_group,
+			'color' => $color,
+			'size' => $size,
+			'export_min_price' => (float)$export_min_price,
+			'no_gtin' => (int)$no_gtin,
+			'no_brand' => (int)$no_brand,
+			'id_exists_tag' => (int)$id_exists_tag,
+			'export_nap' => (int)$export_nap,
+			'quantity' => (int)$quantity,
+			'featured_products' => (int)$featured_products,
+			'gen_file_in_root' => (int)$gen_file_in_root
+		);
+	}
+
+	public function renderAddForm()
+	{
+		$helper = new HelperForm();
+		$helper->show_toolbar = false;
+		$helper->table =  $this->table;
+		//$lang = new Language((int)Configuration::get('PS_LANG_DEFAULT'));
+		//$helper->default_form_language = $lang->id;		
+		$helper->languages = $this->context->controller->getLanguages();
+		$helper->default_form_language = (int)$this->context->language->id;
+		$helper->allow_employee_form_lang = Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG') ? Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG') : 0;
+		$this->fields_form = array();		
+		$helper->fields_value = $this->getGCategFieldsValues();
+		$helper->identifier = $this->identifier;
+		$helper->currentIndex = $this->context->link->getAdminLink('AdminModules', false).'&configure='.$this->name.'&tab_module='.$this->tab.'&module_name='.$this->name;
+		$helper->token = Tools::getAdminTokenLite('AdminModules');	
+		
+		$context = Context::getContext();
+		
+		$conditions	 = array(
+					array('id_cond'=>'','name'=>$this->l('Default')),
+					array('id_cond'=>'new','name'=>$this->l('Category\'s products are new')),
+					array('id_cond'=>'used','name'=>$this->l('Category\'s products are used')),
+					array('id_cond'=>'refurbished','name'=>$this->l('Category\'s products are refurbished'))
+				  );	
+		$avail_modes = array(
+					array('id_mode'=>'','name'=>$this->l('Default')),
+					array('id_mode'=>'in stock','name'=>$this->l('Category\'s products are in stock')),
+					array('id_mode'=>'preorder','name'=>$this->l('Category\'s products avail. on preorder'))
+				  );
+		$gender_modes = array(
+					array('id'=>'','name'=>$this->l('Default')),
+					array('id'=>'male','name'=>$this->l('Category\'s products are for men')),
+					array('id'=>'female','name'=>$this->l('Category\'s products are for women')),
+					array('id'=>'unisex','name'=>$this->l('Category\'s products are unisex'))
+				  );		
+		$age_modes = array(
+					array('id'=>'','name'=>$this->l('Default')),
+					array('id'=>'newborn','name'=>$this->l('Newborn')),
+					array('id'=>'infant','name'=>$this->l('Infant')),
+					array('id'=>'','toddler'=>$this->l('Toddler')),
+					array('id'=>'kids','name'=>$this->l('Kids')),
+					array('id'=>'adult','name'=>$this->l('Adult'))
+				  );
+				  
+		$gcat_desc = '<a href="http://www.google.com/support/merchants/bin/answer.py?answer=160081&query=product_type" target="_blank">' . $this->l('See Google Categories') . '</a> ';
+		
+		$form_desc = html_entity_decode($this->l('Default: System tries to get the value of the product attribute. If not found, system tries to get the category\'s attribute value. <br> If not found, it tries to get the parent category\'s attribute, and so till the root category. At least, if empty, value is not exported.'));
+				  
+		$fields_form = array(
+			'form' => array(
+				'legend' => array(
+					'title' => ((Tools::getIsset('updategshoppingflux')||Tools::getIsset('statusgshoppingflux')) && !Tools::getValue('updategshoppingflux')) ? $this->l('Update the matching Google category') : $this->l('Add a new Google category'),
+					'icon' => 'icon-link',
+				),
+				'input' => array(
+					array(
+						'type' => 'free',
+						'label' => $this->l('Category'),
+						'name' => 'breadcrumb'
+					),
+					array(
+						'type' => 'text',
+						'label' => $this->l('Matching Google category'),
+						'name' => 'gcategory',
+						'lang' => true,
+						'desc' => $gcat_desc
+					),
+					array(
+						'type' => 'checkbox',
+						'name' => 'export',
+						'values' => array(
+							'query' => array(
+								array(
+									'id' => 'active_on',
+									'name' => $this->l('Export products from this category'),
+									'val' => '1'
+								),
+							),
+							'id' => 'id',
+							'name' => 'name'
+						)
+                    ),
+					array(
+						'type' => 'select',
+						'label' => $this->l('Condition'),
+						'name' => 'condition',
+						'default_value' => $helper->tpl_vars['fields_value']['condition'],
+						'options' => array(
+							'query' => $conditions,
+							'id' => 'id_cond',
+							'name' => 'name'
+						)
+					),
+					array(
+						'type' => 'select',
+						'label' => $this->l('Products\' availability'),
+						'name' => 'availability',
+						'default_value' => $helper->tpl_vars['fields_value']['availability'],
+						'options' => array(
+							'query' => $avail_modes,
+							'id' => 'id_mode',
+							'name' => 'name'
+						)
+					),
+					array(
+						'type' => 'select',
+						'label' => $this->l('Gender attribute'),
+						'name' => 'gender',
+						'default_value' => $helper->tpl_vars['fields_value']['gender'],
+						'options' => array(
+							'query' => $gender_modes,
+							'id' => 'id',
+							'name' => 'name'
+						)
+					),
+					array(
+						'type' => 'select',
+						'label' => $this->l('Age group'),
+						'name' => 'age_group',
+						'default_value' => $helper->tpl_vars['fields_value']['age_group'],
+						'options' => array(
+							'query' => $age_modes,
+							'id' => 'id',
+							'name' => 'name'
+						)
+					)
+				),
+				'description' => $form_desc,
+				'submit' => array(
+					'name' => 'submitCategory',
+					'title' => $this->l('Save')
+				)
+			),
+		);
+		
+		if ( (Tools::getIsset('updategshoppingflux') || Tools::getIsset('statusgshoppingflux')) && !Tools::getValue('updategshoppingflux') )
+			$fields_form['form']['submit'] = array(
+				'name' => 'updateCategory',
+				'title' => $this->l('Update')
+			);
+		
+		if (Tools::isSubmit('updategshoppingflux') || Tools::isSubmit('statusgshoppingflux'))
+
+		{
+			$fields_form['form']['input'][] = array('type' => 'hidden', 'name' => 'updatecateg');
+			$fields_form['form']['input'][] = array('type' => 'hidden', 'name' => 'id_gcategory');
+			$helper->fields_value['updatecateg'] = '';
+		}
+
+		return $helper->generateForm(array($fields_form));
+	}
+	
+	public function getGCategFieldsValues()
+	{
+		$gcatexport_active = '';
+		$gcatcondition_edit = '';
+		$gcatavail_edit = '';
+		$gcatgender_edit = '';
+		$gcatage_edit = '';
+		$gcategory_edit = '';
+		$gcatlabel_edit = '';
+
+		if (Tools::isSubmit('updategshoppingflux') || Tools::isSubmit('statusgshoppingflux'))
+		{
+			$gcateg = GCategories::getCategLang(Tools::getValue('id_gcategory'), (int)Shop::getContextShopID());
+
+			foreach ($gcateg['gcategory'] as $key => $categ)
+				$gcateg['gcategory'][$key] = Tools::htmlentitiesDecodeUTF8($categ);
+
+			$gcatexport_active = $gcateg['export'];
+			$gcatcondition_edit = $gcateg['condition'];
+			$gcatavail_edit = $gcateg['availability'];
+			$gcatgender_edit = $gcateg['gender'];
+			$gcatage_edit = $gcateg['age_group'];
+			$gcategory_edit = $gcateg['gcategory'];
+			$gcatlabel_edit = $gcateg['breadcrumb'];
+			//$gcatlabel_edit = '<label style="font-size:13px;font-weight:bold;vertical-align:text-bottom;text-align:left">'.$gcateg['breadcrumb'].'</label> <br /> ';
+		}
+		
+		$fields_values = array(
+			'id_gcategory' => Tools::getValue('id_gcategory'),
+			'breadcrumb' => (isset($gcatlabel_edit) ? $gcatlabel_edit : ''),
+			'export_active_on' => Tools::getValue('export_active_on', isset($gcatexport_active) ? $gcatexport_active : ''),
+			'condition' => Tools::getValue('condition', isset($gcatcondition_edit) ? $gcatcondition_edit : ''),
+			'availability' => Tools::getValue('availability', isset($gcatavail_edit) ? $gcatavail_edit : ''),
+			'gender' => Tools::getValue('gender', isset($gcatgender_edit) ? $gcatgender_edit : ''),
+			'age_group' => Tools::getValue('age_group', isset($gcatage_edit) ? $gcatage_edit : ''),
+				
+		);
+		
+		if (Tools::getValue('submitAddmodule'))
+		{
+			foreach (Language::getLanguages(false) as $lang)
+			{
+				$fields_values['gcategory'][$lang['id_lang']] = '';
+			}
+		}
+		else
+			foreach (Language::getLanguages(false) as $lang)
+			{
+				$fields_values['gcategory'][$lang['id_lang']] = Tools::getValue('gcategory_'.(int)$lang['id_lang'], isset($gcategory_edit[$lang['id_lang']]) ?  html_entity_decode($gcategory_edit[$lang['id_lang']]) : '');
+			}
+
+		return $fields_values;
+	}
+	
+	public function renderList()
+	{	
+		$gcategories = $this->makeCatTree();
+		$fields_list = array(
+			'id_gcategory' => array(
+				'title' => $this->l('Category ID'),
+			)
+		);
+			
+		if(Configuration::get('PS_MULTISHOP_FEATURE_ACTIVE') && count(Shop::getShops(true, null, true)) > 1)
+			$fields_list = array_merge($fields_list, array(
+					'shop_name' => array(
+						'title' => $this->l('Shop name'),
+						'width' => '15%'
+					)
+				)
+			);
+			
+		$fields_list = array_merge($fields_list, array(
+				'gcat_name' => array(
+					'title' => $this->l('Category'),
+					'width' => '30%'
+				),
+				'gcategory' => array(
+					'title' => $this->l('Matching Google category'),
+					'width' => '70%'
+				),
+				'condition' => array(
+					'title' => $this->l('Condit.')
+				),
+				'availability' => array(
+					'title' => $this->l('Avail.')
+				),
+				'gender' => array(
+					'title' => $this->l('Gender')
+				),
+				'age_group' => array(
+					'title' => $this->l('Age'),
+				),
+				'export' => array(
+					'title' => $this->l('Export'),
+					'align' => 'center',
+					'is_bool' => true,
+					'active' => 'status'
+				)			
+			)
+		);
+
+		$helper = new HelperList();
+		$helper->shopLinkType = '';
+		$helper->simple_header = true;
+		$helper->identifier = 'id_gcategory';
+		$helper->table = 'gshoppingflux';
+		$helper->actions = array('edit');
+		$helper->show_toolbar = false;
+		$helper->module = $this;
+		$helper->title = $this->l('Google categories');
+		$helper->token = Tools::getAdminTokenLite('AdminModules');
+		$helper->currentIndex = AdminController::$currentIndex.'&configure='.$this->name;
+		
+		return $helper->generateList($gcategories, $fields_list);
+		
+	}
+	
+	public function renderInfo()
+	{
+		$helper = new HelperForm();
+		$helper->show_toolbar = false;
+		$helper->table =  $this->table;	
+		$helper->languages = $this->context->controller->getLanguages();
+		$helper->default_form_language = (int)$this->context->language->id;
+		$helper->allow_employee_form_lang = Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG') ? Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG') : 0;
+		$this->fields_form = array();
+		$helper->identifier = $this->identifier;
+		$helper->currentIndex = $this->context->link->getAdminLink('AdminModules', false).'&configure='.$this->name.'&tab_module='.$this->tab.'&module_name='.$this->name;
+		$helper->token = Tools::getAdminTokenLite('AdminModules');	
+		
+		$context = Context::getContext();
+		
+ 		// Get active langs on shop
+        $languages = Language::getLanguages();
+		$shops = Shop::getShops(true, null, true);     
+        
+        foreach ($languages as $i => $lang) {
+            if (Configuration::get('GS_GEN_FILE_IN_ROOT') == 1) {
+                $get_file_url = $this->uri . $this->_getOutputFileName($lang['iso_code'], $context->shop->id);
+            } else {
+                $get_file_url = $this->uri . 'modules/' . $this->getName() . '/file_exports/'. $this->_getOutputFileName($lang['iso_code'], $context->shop->id);
+            }
+            
+            $output .= '<a href="' . $get_file_url . '">' . $get_file_url . '</a> <br /> ';
+        }
+		$info_cron = $this->uri . 'modules/' . $this->getName() . '/cron.php';
+		if (count($languages) > 1)
+			$files_desc = $this->l('Configure these URLs in your Google Merchant Center account.');
+		else
+			$files_desc = $this->l('Configure this URL in your Google Merchant Center account.');
+		$cron_desc = $this->l('Install a CRON task to update the feed frequently.');
+		if (count($shops) > 1)
+			$cron_desc .= ' '.$this->l('Please note that as multishop feature is active, you\'ll have to install several CRON tasks, one for each shop.');
+				
+		$helper->fields_value = array('info_files' => $output, 'info_cron' => $info_cron);
+		
+		$fields_form = array(
+			'form' => array(
+				'legend' => array(
+					'title' => $this->l('Files information'),
+					'icon' => 'icon-info',
+				),
+				'input' => array(
+					array(
+						'type' => 'free',
+						'label' => $this->l('Generated files links:'),
+						'name' => 'info_files',
+						'desc' => $files_desc 
+					),
+					array(
+						'type' => 'free',
+						'label' => $this->l('Automatic files generation:'),
+						'name' => 'info_cron',						
+						'desc' => $cron_desc 
+					)
+				)
+			)
+		);
+		
+		return $helper->generateForm(array($fields_form));
+	}	
+
+	public function customGetNestedCategories($shop_id, $root_category = null, $id_lang = false, $active = true, $groups = null, $use_shop_restriction = true, $sql_filter = '', $sql_sort = '', $sql_limit = '')
+	{
+		if (isset($root_category) && !Validate::isInt($root_category))
+			die(Tools::displayError());
+
+		if (!Validate::isBool($active))
+			die(Tools::displayError());
+
+		if (isset($groups) && Group::isFeatureActive() && !is_array($groups))
+			$groups = (array)$groups;
+
+		$cache_id = 'Category::getNestedCategories_'.md5((int)$shop_id.(int)$root_category.(int)$id_lang.(int)$active.(int)$active
+			.(isset($groups) && Group::isFeatureActive() ? implode('', $groups) : ''));
+
+		if (!Cache::isStored($cache_id))
+		{
+			$result = Db::getInstance()->executeS('
+				SELECT c.*, cl.`name` as gcat_name, g.*, gl.*, s.name as shop_name
+				FROM `'._DB_PREFIX_.'category` c
+				INNER JOIN `'._DB_PREFIX_.'category_shop` cs ON (cs.`id_category` = c.`id_category` AND cs.`id_shop` = "'.(int)$shop_id.'")
+				LEFT JOIN `'._DB_PREFIX_.'category_lang` cl ON c.`id_category` = cl.`id_category` AND cl.`id_shop` = "'.(int)$shop_id.'"
+				LEFT JOIN `'._DB_PREFIX_.'gshoppingflux` g ON g.`id_gcategory` = c.`id_category` AND g.`id_shop` = "'.(int)$shop_id.'"
+				LEFT JOIN `'._DB_PREFIX_.'gshoppingflux_lang` gl ON gl.`id_gcategory` = c.`id_category` AND gl.`id_shop` = "'.(int)$shop_id.'"
+				LEFT JOIN '._DB_PREFIX_.'shop s ON s.`id_shop` = "'.(int)$shop_id.'"
+				WHERE 1 '.$sql_filter.' '.($id_lang ? 'AND cl.`id_lang` = '.(int)$id_lang.' AND gl.`id_lang` = '.(int)$id_lang : '').'
+				'.($active ? ' AND c.`active` = 1' : '').'
+				'.(isset($groups) && Group::isFeatureActive() ? ' AND cg.`id_group` IN ('.implode(',', $groups).')' : '').'
+				'.(!$id_lang || (isset($groups) && Group::isFeatureActive()) ? ' GROUP BY c.`id_category`' : '').'
+				'.($sql_sort != '' ? $sql_sort : ' ORDER BY c.`level_depth` ASC').'
+				'.($sql_sort == '' && $use_shop_restriction ? ', cs.`position` ASC' : '').'
+				'.($sql_limit != '' ? $sql_limit : '')
+			);
+			
+			foreach($result as $k => $v){
+				$result[$k]['gcategory'] = html_entity_decode($result[$k]['gcategory']);
+				if($result[$k]['level_depth']>0){
+					$tree = " > "; $str='';
+					for($i=0;$i<$result[$k]['level_depth']-1;$i++){
+						$str .= $tree;
+					}
+					$result[$k]['gcat_name'] = $str.' '.$result[$k]['gcat_name'];
+				}
+			}
+
+			$categories = array();
+			$buff = array();
+
+			if (!isset($root_category))
+				$root_category = 1;
+
+			foreach ($result as $row)
+			{
+				$current = &$buff[$row['id_category']];
+				$current = $row;
+
+				if ($row['id_category'] == $root_category)
+					$categories[$row['id_category']] = &$current;
+				else
+					$buff[$row['id_parent']]['children'][$row['id_category']] = &$current;
+			}
+
+			Cache::store($cache_id, $categories);
+		}
+
+		return Cache::retrieve($cache_id);
+	}
+	
+	private function makeCatTree($id_cat=0, $catlist=0)
+	{
+		$id_lang = (int)$this->context->language->id;
+		$id_shop = (int)Shop::getContextShopID();
+		if ($id_cat==0 && $catlist==0){
+			$catlist = array();
+			$id_cat = GCategories::getRoot($id_shop);
+		}
+		$category = new Category((int)$id_cat, (int)$id_lang);
+		
+		if (Validate::isLoadedObject($category)){
+			$tabcat = $this->customGetNestedCategories($id_shop, $id_cat, $id_lang, true, $this->user_groups, true);
+			$catlist = array_merge($catlist,$tabcat);
+		}
+		
+		foreach ($tabcat as $k => $c){
+			if(!empty($c['children'])){
+				foreach ($c['children'] as $i => $j){
+					$catlist = $this->makeCatTree($j['id_category'],$catlist);
+				}
+			}
+		}
+		
+		return $catlist;
+		
+	}	
+	
+	public function getGCategValues($id_lang, $id_shop)
+	{
+		// Get categories' export values, or it's parents ones : Google category, gender, age_group...
+		$sql = 'SELECT k.*, g.*, gl.*
+					FROM '._DB_PREFIX_.'category k 
+					LEFT JOIN '._DB_PREFIX_.'gshoppingflux g ON (g.id_gcategory=k.id_category AND g.id_shop='.$id_shop.')
+					LEFT JOIN '._DB_PREFIX_.'gshoppingflux_lang gl ON (gl.id_gcategory=k.id_category AND gl.id_lang = '.(int)$id_lang.' AND gl.id_shop='.(int)$id_shop.')
+					WHERE g.id_shop = '.(int)$id_shop;
+									
+		$ret = Db::getInstance()->executeS($sql);
+		$id_root = GCategories::getRoot($id_shop);
+		foreach($ret as $cat){		
+			$parent_id = $cat['id_category'];
+			$gcategory = $cat['gcategory'];
+			$condition = $cat['condition'];
+			$availability = $cat['availability'];
+			$gender = $cat['gender'];
+			$age_group = $cat['age_group'];
+					
+			while( (empty($gcategory) || empty($condition) || empty($availability) || empty($gender) || empty($age_group)) && $parent_id>=$id_root )
+			{				
+				$parentsql = $sql . ' AND k.id_category = '.$parent_id.';';						
+				$parentret = Db::getInstance()->executeS($parentsql);
+				foreach($parentret as $parentcat)
+				{
+					$parent_id = $parentcat['id_parent'];
+					if(empty($gcategory))$gcategory = $parentcat['gcategory'];
+					if(empty($condition))$condition = $parentcat['condition'];
+					if(empty($availability))$availability = $parentcat['availability'];
+					if(empty($gender))$gender = $parentcat['gender'];
+					if(empty($age_group))$age_group = $parentcat['age_group'];				
+				}
+			}
+			$this->categories_values[$cat['id_category']]['gcategory'] = html_entity_decode($gcategory);
+			$this->categories_values[$cat['id_category']]['gcat_condition'] = $condition;
+			$this->categories_values[$cat['id_category']]['gcat_avail'] = $availability;
+			$this->categories_values[$cat['id_category']]['gcat_gender'] = $gender;
+			$this->categories_values[$cat['id_category']]['gcat_age_group'] = $age_group;
+			
+		}
+		
+	}
+    
+    private function rip_tags($string)
+    {
+        
+        // ----- remove HTML TAGs ----- 
+        $string = preg_replace('/<[^>]*>/', ' ', $string);
+        
+        // ----- remove control characters ----- 
+        $string = str_replace("\r", '', $string); // --- replace with empty space
+        $string = str_replace("\n", ' ', $string); // --- replace with space
+        $string = str_replace("\t", ' ', $string); // --- replace with space
+        
+        // ----- remove multiple spaces ----- 
+        $string = trim(preg_replace('/ {2,}/', ' ', $string));
+        
+        return $string;
+        
+    }
+    
+    public function getName()
+    {
+        $output = $this->name;
+        return $output;
+    }
+	 
+    private function _getOutputFileName($lang, $shop) {
+    	/*
+		if (Configuration::get('PS_MULTISHOP_FEATURE_ACTIVE')) {
+            $id_shop = $this->context->shop->id;
+        } else {
+            $id_shop = 0;
+        }
+		*/
+        return 'googleshopping-s'.$shop.'-'. $lang . '.xml';
+    }
+	
+	public function getShopDescription($id_lang, $id_shop)
+	{
+		$sql = 'SELECT ml.description
+					FROM '._DB_PREFIX_.'meta_lang ml
+					LEFT JOIN '._DB_PREFIX_.'meta m ON (m.id_meta = ml.id_meta)
+					WHERE m.page="index" AND ml.id_shop = '.(int)$id_shop.' AND ml.id_lang = '.(int)$id_lang.';';									
+		$ret = Db::getInstance()->executeS($sql);
+		return ($ret[0]['description']);		
+	}	
+	
+	 public function generateAllShopsFileList()
+    {
+        // Get all shops
+        $shops = Shop::getShops(true, null, true);
+		foreach ($shops as $i => $shop)
+		{
+			$ret[$i] = $this->generateShopFileList($shop);
+		}
+		return $ret;
+    }
+    
+    public function generateShopFileList($shop)
+    {
+        // Get all shop languages
+        $languages = Language::getLanguages();
+        foreach ($languages as $i => $lang)
+		{
+            $ret[$i] = $this->generateFile($lang, $shop);
+        }
+		return $ret;
+    }
+    
+    private function generateFile($lang, $id_shop)
+    {		
+		$id_lang = (int)$lang['id_lang'];	
+		$shop = new Shop($id_shop);
+		$id_shop_group = (int)Shop::getGroupFromShop($id_shop);
+		
+		// Get module configuration for this shop
+		$module_conf = $this->getConfigFieldsValues($id_shop);
+		$features = $this->getShopFeatures($id_lang, $id_shop);
+		
+		// Init categories special attributes : Google's matching category, gender, age_group...
+		$this->getGCategValues($id_lang, $id_shop);
+		
+		// Init file_path value
+        if ($module_conf['gen_file_in_root']) {
+            $generate_file_path = dirname(__FILE__) .'/../../'. $this->_getOutputFileName($lang['iso_code'], $id_shop);
+        } else {
+            $generate_file_path = dirname(__FILE__) . '/file_exports/'. $this->_getOutputFileName($lang['iso_code'], $id_shop);
+        }
+        
+		$meta = Meta::getMetaByPage('index', $id_lang);
+        // Google Shopping XML
+        $xml = '<?xml version="1.0" encoding="'.self::CHARSET.'" ?>' . "\n";
+        $xml .= '<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">' . "\n\n";
+		$xml .= '<channel>' . "\n";		
+        // Shop name
+		$xml .= '<title><![CDATA['.$shop->name.']]></title>' . "\n";		
+		 // Shop description
+		$xml .= '<description><![CDATA['.$this->getShopDescription($id_lang, $id_shop).']]></description>' . "\n";
+        $xml .= '<link href="' . htmlspecialchars($this->uri, self::REPLACE_FLAGS, self::CHARSET, false) . '" rel="alternate" type="text/html"/>' . "\n";
+		$xml .= '<image>' . "\n";
+		$xml .= '<title><![CDATA[' . Configuration::get('PS_SHOP_NAME') . ']]></title>' . "\n";
+		$xml .= '<url>' . htmlspecialchars($this->uri, self::REPLACE_FLAGS, self::CHARSET, false) . 'img/logo.jpg</url>' . "\n";
+		$xml .= '<link>' . htmlspecialchars($this->uri, self::REPLACE_FLAGS, self::CHARSET, false) . '</link>' . "\n";
+		$xml .= '</image>' . "\n";
+        $xml .= '<modified>' . date('Y-m-d') . 'T01:01:01Z</modified>' . "\n";
+        $xml .= '<author>'."\n".'<name>' . Configuration::get('PS_SHOP_NAME') . '</name>'."\n".'</author>' . "\n\n";
+        
+        $googleshoppingfile = fopen($generate_file_path, 'w');
+        
+        // Add UTF-8 byte order mark
+        fwrite($googleshoppingfile, pack("CCC", 0xef, 0xbb, 0xbf));
+        
+        // File header 
+        fwrite($googleshoppingfile, $xml);
+		
+		$sql = 'SELECT p.*, pl.*, ps.id_category_default as category_default, gc.*, gl.* ' //fl.*, 
+			 . 'FROM ' . _DB_PREFIX_ . 'product p '
+			 . 'LEFT JOIN ' . _DB_PREFIX_ . 'product_lang pl ON pl.id_product = p.id_product '
+			 . 'LEFT JOIN ' . _DB_PREFIX_ . 'product_shop ps ON ps.id_product = p.id_product '
+			 //. 'LEFT JOIN ' . _DB_PREFIX_ . 'feature_product fp ON fp.id_product = p.id_product '
+			 //. 'LEFT JOIN ' . _DB_PREFIX_ . 'feature_lang fl ON fl.id_feature = fp.id_feature '
+			 //. 'LEFT JOIN ' . _DB_PREFIX_ . 'feature_shop fs ON fs.id_feature = fp.id_feature '
+			 . 'LEFT JOIN ' . _DB_PREFIX_ . 'category c ON c.id_category = ps.id_category_default '
+			 . 'LEFT JOIN ' . _DB_PREFIX_ . 'gshoppingflux gc ON gc.id_gcategory = c.id_category '
+			 . 'LEFT JOIN ' . _DB_PREFIX_ . 'gshoppingflux_lang gl ON gl.id_gcategory = gc.id_gcategory '
+			 . 'WHERE p.active = 1 AND c.active = 1 AND gc.export = 1 '
+			 . 'AND pl.id_lang='.$id_lang.' AND gl.id_lang='.$id_lang.' ';
+			 //. ' AND fl.id_lang='.$id_lang.' AND (fp.id_feature='.(int)$module_conf['gender'].' OR fp.id_feature='.(int)$module_conf['age_group'].')';
+			 
+		// Multishops filter		
+		if (Configuration::get('PS_MULTISHOP_FEATURE_ACTIVE') && count(Shop::getShops(true, null, true)) > 1) {
+            $sql .= ' AND gc.id_shop = '.$id_shop.' AND pl.id_shop = '.$id_shop.' AND ps.id_shop = '.$id_shop;
+			//$sql .= ' AND fs.id_shop = '.$id_shop;
+        }
+		
+		// Check EAN13
+		if ($module_conf['no_gtin']!=1)
+			$sql .= ' AND p.ean13 != \'\' AND p.ean13 != \'0\'';
+		
+		// Check BRAND
+		if ($module_conf['no_brand']!=1)
+			$sql .= ' AND p.id_manufacturer != \'\' AND p.id_manufacturer != \'0\'';
+		
+        $products = Db::getInstance()->ExecuteS($sql);
+        $title_limit       = 70;
+        $description_limit = 10000;
+		$count = array();
+        $languages     = Language::getLanguages();
+        $tailleTabLang = sizeof($languages);
+        
+        foreach ($products as $product) {
+			$xml_googleshopping = '';
+			// Exclude non-available products
+			$quantity = StockAvailable::getQuantityAvailableByProduct($product['id_product'], 0, $id_shop);
+			if($module_conf['export_nap']===0 && $quantity < 1) continue;
+			// Check minimum product price
+			$price = Product::getPriceStatic((int)$product['id_product'], true);
+			if ((float)$module_conf['export_min_price']>0 && (float)$module_conf['export_min_price']>(float)$price) continue;	
+			$context = Context::getContext();
+			$context->language->id = $id_lang;
+			$context->shop->id = $id_shop;
+			$p = new Product($product['id_product'], true, $id_lang, $id_shop, $context);
+            				
+            $cat_link_rew = Category::getLinkRewrite($product['id_gcategory'], intval($lang));
+			
+            $product_link = $this->context->link->getProductLink((int) ($product['id_product']), $product['link_rewrite'], $cat_link_rew, $product['ean13'], (int) ($product['id_lang']), $id_shop, 0, true);
+            
+            // Product name
+			$title_crop = $product['name'];
+            if (strlen($product['name']) > $title_limit) {
+                $title_crop = substr($title_crop, 0, ($title_limit - 1));
+                $title_crop = substr($title_crop, 0, strrpos($title_crop, " "));
+            }
+
+            
+			// Description type
+            if ($module_conf['description'] == 'long') {
+                $description_crop = $product['description'];
+            } else if ($module_conf['description'] == 'short') {
+                $description_crop = $product['description_short'];
+            } else if ($module_conf['description'] == 'meta') {
+                $description_crop = $product['meta_description'];
+            }
+            $description_crop = $this->rip_tags($description_crop);
+            
+            if (strlen($description_crop) > $description_limit) {
+                $description_crop = substr($description_crop, 0, ($description_limit - 1));
+                $description_crop = substr($description_crop, 0, strrpos($description_crop, " "));
+            }
+            
+            $xml_googleshopping .= '<item>' . "\n";
+            $xml_googleshopping .= '<g:id>' . $product['id_product'] . '-' . $lang['iso_code'] . '</g:id>' . "\n";
+            $xml_googleshopping .= '<title><![CDATA[' . ucfirst(mb_strtolower($title_crop, self::CHARSET)) . ']]></title>' . "\n";
+            $xml_googleshopping .= '<description><![CDATA[' . $description_crop . ']]></description>' . "\n";
+            $xml_googleshopping .= '<link><![CDATA[' . htmlspecialchars($product_link, self::REPLACE_FLAGS, self::CHARSET, false) . ']]></link>' . "\n";
+            
+            // Image links 
+			$images       = Image::getImages($lang['id_lang'], $product['id_product']);
+            $indexTabLang = 0;            
+            if ($tailleTabLang > 1) {
+                while (sizeof($images) < 1 && $indexTabLang < $tailleTabLang) {
+                    if ($languages[$indexTabLang]['id_lang'] != $lang['id_lang']) {
+                        $images = Image::getImages($languages[$indexTabLang]['id_lang'], $product['id_product']);
+                    }
+                    $indexTabLang++;
+                }
+            }            
+            $nbimages   = 0;
+            $image_type = $module_conf['img_type'];
+            if ($image_type == '')
+                $image_type = 'large_default';            
+            foreach ($images as $im) {
+                $image = $this->context->link->getImageLink($product['link_rewrite'], $product['id_product'] . '-' . $im['id_image'], $image_type);
+                $xml_googleshopping .= '<g:image_link><![CDATA[' . $image . ']]></g:image_link>' . "\n";
+                // max images by product
+                if (++$nbimages == 10)
+                    break;
+            }
+			
+			// Product condition, or category's condition attribute, or its parent one...
+			// Product condition = new, used, refurbished
+			if(empty($product['condition']))
+				$product['condition'] = $this->categories_values[$product['id_gcategory']]['gcat_condition'];
+			if(empty($product['condition'])) $product['condition'] = 'new';
+			$xml_googleshopping .= '<g:condition><![CDATA[' . $product['condition'] . ']]></g:condition>' . "\n";
+			
+			// Shop category
+            $breadcrumb = GCategories::getBreadcrumbCategory($product['id_gcategory'], $id_lang, $id_shop);
+            $xml_googleshopping .= '<g:product_type><![CDATA[' . $breadcrumb . ']]></g:product_type>' . "\n";
+			
+            // Matching Google category, or parent categories' one				
+			$product['gcategory'] = $this->categories_values[$product['category_default']]['gcategory'];
+			$xml_googleshopping .= '<g:google_product_category><![CDATA['.$product['gcategory'].']]></g:google_product_category>' . "\n";
+			
+			// Product quantity & availability
+			if (empty($this->categories_values[$product['category_default']]['gcat_avail'])) {
+				if ($module_conf['quantity'] == 1)
+					$xml_googleshopping .= '<g:quantity>'.$quantity.'</g:quantity>'."\n";
+				if ($quantity > 0) {
+                    $xml_googleshopping .= '<g:availability>in stock</g:availability>' . "\n";
+                } else {
+                    $xml_googleshopping .= '<g:availability>out of stock</g:availability>' . "\n";
+                }
+            }else {
+				if ($module_conf['quantity'] == 1 && $quantity > 0)
+					$xml_googleshopping .= '<g:quantity>'.$quantity.'</g:quantity>'."\n";
+				$xml_googleshopping .= '<g:availability>'.$this->categories_values[$product['category_default']]['gcat_avail'].'</g:availability>' . "\n";
+			}
+			
+			// Price(s)
+			$currency = new Currency((int)Configuration::get('PS_CURRENCY_DEFAULT'));
+			$price = round($p->getPriceStatic($product['id_product'], true),2);
+			$price = number_format($price,2,'.',' ');
+			$price_without_reduct = round($p->getPriceWithoutReduct(false),2);
+			$price_without_reduct = number_format($price_without_reduct,2,'.',' ');
+			if ((float)($price) < (float)($price_no_discount)) {
+				$xml_googleshopping .='<g:price>'.$price_without_reduct.' '. $currency->iso_code.'</g:price>'."\n";
+				$xml_googleshopping .='<g:sale_price>'.$price.' '. $currency->iso_code.'</g:sale_price>'."\n";
+			} else {
+				$xml_googleshopping .='<g:price>'.$price.' '. $currency->iso_code.'</g:price>'."\n";
+			}
+            
+            $identifier_exists = 0;            
+			// GTIN (EAN, UPC, JAN, ISBN)
+            if ($module_conf['no_gtin']!=0 && $product['ean13'] != '' && $product['ean13'] != '0') {
+                $xml_googleshopping .= '<g:gtin>' . $product['ean13'] . '</g:gtin>' . "\n";
+                $identifier_exists++;
+            }
+            
+			// Brand
+            if ($module_conf['no_brand']!=0 && !empty($product['id_manufacturer'])) {
+                $xml_googleshopping .= '<g:brand><![CDATA[' . htmlspecialchars(Manufacturer::getNameById(intval($product['id_manufacturer'])), self::REPLACE_FLAGS, self::CHARSET, false) . ']]></g:brand>' . "\n";
+                $identifier_exists++;
+            }
+			
+			// MPN
+			if(empty($product['supplier_reference']))
+				$product['supplier_reference'] = ProductSupplier::getProductSupplierReference($product['id_product'], 0, $product['id_supplier']);
+			if ($module_conf['mpn_type']=='reference' && !empty($product['reference'])) {
+				$xml_googleshopping .= '<g:mpn><![CDATA[' . $product['reference'] . ']]></g:mpn>' . "\n";
+				$identifier_exists++;
+			} else if ($module_conf['mpn_type']=='supplier_reference' && !empty($product['supplier_reference'])){
+				$xml_googleshopping .= '<g:mpn><![CDATA[' . $product['supplier_reference'] . ']]></g:mpn>' . "\n";
+				$identifier_exists++;
+			}
+            
+			// Tag "identifier_exists"
+            if ($module_conf['id_exists_tag'] && $identifier_exists<2) {
+                $xml_googleshopping .= '<g:identifier_exists>FALSE</g:identifier_exists>' . "\n";
+            }
+            
+			// Product gender and age_group attributes association
+			foreach($product_features as $f => $feature){
+				switch($feature['id_feature'])
+				{
+					case $module_conf['gender']:
+						$product['gender'] = $feature['value'];
+						break;
+					
+					case $module_conf['age_group']:
+						$product['age_group'] = $feature['value'];
+						break;
+				}
+			}
+			
+			//$attributeCombinations = $p->getAttributeCombinations($id_lang);
+							
+			//  Product gender attribute, or category gender attribute, or parent's one
+			if(empty($product['gender']))
+				$product['gender'] = $this->categories_values[$product['category_default']]['gcat_gender'];
+			if(!empty($product['gender']))	
+				$xml_googleshopping .= '<g:gender><![CDATA[' . $product['gender'] . ']]></g:gender>' . "\n";
+            
+			// Product age_group attribute, or category age_group attribute, or parent's one
+			if(empty($product['age_group']))			
+				$product['age_group'] = $this->categories_values[$product['category_default']]['gcat_age_group'];
+			if(!empty($product['age_group']))
+				$xml_googleshopping .= '<g:age_group><![CDATA[' . $product['age_group'] . ']]></g:age_group>' . "\n";
+			
+			//  Product color attribute, if any
+			if(!empty($product['color']))	
+				$xml_googleshopping .= '<g:color><![CDATA[' . $product['color'] . ']]></g:color>' . "\n";
+            
+			// Product size attribute, if any
+			if(!empty($product['size']))
+				$xml_googleshopping .= '<g:size><![CDATA[' . $product['size'] . ']]></g:size>' . "\n";
+            
+            // Featured products
+            if ($module_conf['featured_products'] == 1 && $product['on_sale'] != '0') {
+                $xml_googleshopping .= '<g:featured_product>true</g:featured_product>' . "\n";
+            }
+			
+            // Shipping
+            $xml_googleshopping .= '<g:shipping>' . "\n";
+            $xml_googleshopping .= "\t".'<g:country>' . $module_conf['shipping_country'] . '</g:country>' . "\n";
+            $xml_googleshopping .= "\t".'<g:service>Standard</g:service>' . "\n";
+            $xml_googleshopping .= "\t".'<g:price>' . number_format($module_conf['shipping_price'],2,'.',' ') . ' '. $currency->iso_code .'</g:price>' . "\n";
+            $xml_googleshopping .= '</g:shipping>' . "\n";            
+            
+            // Shipping weight
+            if ($product['weight'] != '0') {
+                $xml_googleshopping .= '<g:shipping_weight>' . number_format($product['weight'], 2, '.', '') . ' '. Configuration::get('PS_WEIGHT_UNIT').'</g:shipping_weight>' . "\n";
+            }
+			
+            $xml_googleshopping .= '</item>' . "\n\n";
+            
+            // Write element
+            fwrite($googleshoppingfile, $xml_googleshopping);
+			$count[$product['id_product']] = true;
+        }
+        
+        $xml = '</channel>'."\n".'</rss>';
+        fwrite($googleshoppingfile, $xml);
+        fclose($googleshoppingfile);
+        
+        @chmod($generate_file_path, 0777);
+        return count($count);
+    }
+		
+}
