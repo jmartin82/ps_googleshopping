@@ -1546,10 +1546,10 @@ class GShoppingFlux extends Module
 		$this->getGCategValues($id_lang, $id_shop);
 		
 			// Exclude non-available products
-			if($module_conf['export_nap']===0 && $product['quantity'] < 1) continue;
+			if($module_conf['export_nap']===0 && $product['quantity'] < 1) return;
 			// Check minimum product price
 			$price = Product::getPriceStatic((int)$product['id_product'], true);
-			if ((float)$module_conf['export_min_price']>0 && (float)$module_conf['export_min_price']>(float)$price) continue;	
+			if ((float)$module_conf['export_min_price']>0 && (float)$module_conf['export_min_price']>(float)$price) return;	
             				
             $cat_link_rew = Category::getLinkRewrite($product['id_gcategory'], intval($lang));
 			
