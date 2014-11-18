@@ -182,7 +182,7 @@ class GCategories
      			 . 'ON (cl.`id_category` = c.`id_category` '
         		 . 'AND `id_lang` = ' . (int) $id_lang . Shop::addSqlRestrictionOnLang('cl') . ') '
                  . 'LEFT JOIN `' . _DB_PREFIX_ . 'gshoppingflux` gc ON (gc.`id_gcategory` = c.`id_category`) '
-            	 . 'WHERE gc.`id_gcategory` = ' . (int) $id_current . ' ';
+            	 . 'WHERE gc.`id_gcategory` = ' . (int) $id_current . ' '
 				 . 'AND c.id_parent >= 0';
             if (Shop::isFeatureActive() && Shop::getContext() == Shop::CONTEXT_SHOP)
             	$sql .= ' AND gc.`id_shop` = ' . (int)$id_shop;
