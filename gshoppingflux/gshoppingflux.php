@@ -31,7 +31,7 @@ class GShoppingFlux extends Module
     { 
         $this->name    = 'gshoppingflux';
         $this->tab     = 'smart_shopping';
-        $this->version = '1.5.1';
+        $this->version = '1.5.2';
         $this->author  = 'DiMooz';
         
 		$this->bootstrap = true;
@@ -146,8 +146,7 @@ class GShoppingFlux extends Module
 
 		foreach ($categs as $kc => $cat)
 		{		
-			foreach($languages as $key => $lang)
-				$str[$lang['id_lang']] = '';				
+			foreach($languages as $key => $lang) $str[$lang['id_lang']] = '';				
 			$condition = '';				
 			$availability = '';				
 			$gender = '';
@@ -159,8 +158,6 @@ class GShoppingFlux extends Module
 					if($root_id == $cat['id_category']){
 						foreach($languages as $key => $lang)
 							$str[$lang['id_lang']] = $this->l('Google Category Example > Sub Google Category Example');
-						GCategories::add($cat['id_category'], $str, $cat['active'], $condition, $availability, $gender, $age_group, $shop_id);
-						continue 2;
 					}
 				}
 				GCategories::add($cat['id_category'], $str, $cat['active'], $condition, $availability, $gender, $age_group, $id_shop);					
