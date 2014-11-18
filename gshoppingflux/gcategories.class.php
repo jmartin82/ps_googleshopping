@@ -186,15 +186,15 @@ class GCategories
             if (Shop::isFeatureActive() && Shop::getContext() == Shop::CONTEXT_SHOP)
             	$sql .= ' AND gc.`id_shop` = ' . (int)$id_shop;
             $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
-            
-            if (isset($result[0]))
-                $categories = $result[0]['name'] . ' > ' . $categories;
-				
-			$id_current = $result[0]['id_parent'];
+			
+			if (isset($result[0])){
+				$categories = $result[0]['name'] . ' > ' . $categories;				
+				$id_current = $result[0]['id_parent'];
+			}
 			
 			if (!$result || ($result[0]['id_category'] == $id_root)){
 				$categories = substr($categories, 0, -3);
-                return $categories;
+				return $categories;
 			}
         }
 		
