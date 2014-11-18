@@ -133,16 +133,17 @@ class GShoppingFlux extends Module
 		$str = array();
 		$root_cats = array();
 		
-		foreach ($shops as $ks => $shop_id)
-		{
-			$root_cats[$shop_id] = GCategories::getRoot($shop_id);
-		}		
+		//foreach ($shops as $ks => $shop_id)
+		//{
+			//$root_cat[$shop_id] = GCategories::getRoot($shop_id);
+		//}
+		$root_id = GCategories::getRoot($id_shop);
 		
 		$categs = Db::getInstance()->executeS('
 			SELECT c.id_category, c.id_parent, c.active 
 			FROM '._DB_PREFIX_.'category c
 			INNER JOIN `'._DB_PREFIX_.'category_shop` cs ON (cs.id_category=c.id_category AND cs.id_shop='.(int)$id_shop.')
-			ORDER BY c.level_depth ASC, cs.position ASC;');
+			ORDER BY c.id_category ASC, c.level_depth ASC, cs.position ASC;');
 
 		foreach ($categs as $kc => $cat)
 		{		
@@ -152,14 +153,15 @@ class GShoppingFlux extends Module
 			$gender = '';
 			$age_group = '';					
 			
-			if(!count(GCategories::get($cat['id_category'],$id_lang,$id_shop)) && ($cat['id_category']!=1) ){
-				foreach ($root_cats as $shop_id => $root_id)
-				{
-					if($root_id == $cat['id_category']){
+			if(!count(GCategories::get($cat['id_category'],$id_lang,$id_shop)) && ($cat['id_category']>0) ){
+				//foreach ($root_cats as $shop_id => $root_id)
+				//{
+					if($root_id == $cat['id_category'])
+					{
 						foreach($languages as $key => $lang)
-							$str[$lang['id_lang']] = $this->l('Google Category Example > Sub Google Category Example');
+							$str[$lang['id_lang']] = $this->l('Google Category Example > Google Sub-Category Example');
 					}
-				}
+				//}
 				GCategories::add($cat['id_category'], $str, $cat['active'], $condition, $availability, $gender, $age_group, $id_shop);					
 			}
 		}
