@@ -189,10 +189,10 @@ class GCategories
             
             if (isset($result[0]))
                 $categories = $result[0]['name'] . ' > ' . $categories;
+				
+			$id_current = $result[0]['id_parent'];
 			
-            $id_current = $result[0]['id_parent'];        
-			
-            if (!$result || ($result[0]['id_category'] == $id_root)){
+			if (!$result || ($result[0]['id_category'] == $id_root)){
 				$categories = substr($categories, 0, -3);
                 return $categories;
 			}
