@@ -921,7 +921,7 @@ class GShoppingFlux extends Module
 						'type' => 'select',
 						'label' => $this->l('Condition'),
 						'name' => 'condition',
-						'default_value' => $helper->tpl_vars['fields_value']['condition'],
+						'default_value' => $helper->fields_value['condition'],
 						'options' => array(
 							'query' => $conditions,
 							'id' => 'id_cond',
@@ -932,7 +932,7 @@ class GShoppingFlux extends Module
 						'type' => 'select',
 						'label' => $this->l('Products\' availability'),
 						'name' => 'availability',
-						'default_value' => $helper->tpl_vars['fields_value']['availability'],
+						'default_value' => $helper->fields_value['availability'],
 						'options' => array(
 							'query' => $avail_modes,
 							'id' => 'id_mode',
@@ -943,7 +943,7 @@ class GShoppingFlux extends Module
 						'type' => 'select',
 						'label' => $this->l('Gender attribute'),
 						'name' => 'gender',
-						'default_value' => $helper->tpl_vars['fields_value']['gender'],
+						'default_value' => $helper->fields_value['gender'],
 						'options' => array(
 							'query' => $gender_modes,
 							'id' => 'id',
@@ -954,7 +954,7 @@ class GShoppingFlux extends Module
 						'type' => 'select',
 						'label' => $this->l('Age group'),
 						'name' => 'age_group',
-						'default_value' => $helper->tpl_vars['fields_value']['age_group'],
+						'default_value' => $helper->fields_value['age_group'],
 						'options' => array(
 							'query' => $age_modes,
 							'id' => 'id',
