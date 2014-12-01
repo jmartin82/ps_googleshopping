@@ -1404,7 +1404,7 @@ class GShoppingFlux extends Module
 		$xml .= '<link>' . htmlspecialchars($this->uri, self::REPLACE_FLAGS, self::CHARSET, false) . '</link>' . "\n";
 		$xml .= '</image>' . "\n";
         $xml .= '<modified>' . date('Y-m-d') . 'T01:01:01Z</modified>' . "\n";
-        $xml .= '<author>'."\n".'<name>' . Configuration::get('PS_SHOP_NAME') . '</name>'."\n".'</author>' . "\n\n";
+        $xml .= '<author>'."\n".'<name>' . htmlspecialchars(Configuration::get('PS_SHOP_NAME'), self::REPLACE_FLAGS, self::CHARSET, false)  . '</name>'."\n".'</author>' . "\n\n";
         
         $googleshoppingfile = fopen($generate_file_path, 'w');
         
