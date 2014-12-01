@@ -151,54 +151,53 @@ class GCategories
 		Db::getInstance()->delete('gshoppingflux_lang', 'id_gcategory = '.(int)$id_gcategory);
 	}
 
-	public static function getRoot($id_shop)
-	{
-		$sql = 'SELECT s.* FROM '._DB_PREFIX_.'shop s '
-			 . 'WHERE s.id_shop = '.(int)$id_shop.' '
-			 . 'ORDER BY s.id_shop ASC LIMIT 1;';		
-		$ret = Db::getInstance()->executeS($sql);		
-		return ($ret[0]['id_category']);
-	}
-	
 	public static function getBreadcrumbCategory($id_category, $id_lang = null, $id_shop = null)
-    {
-        $context       = Context::getContext()->cloneContext();
+	{
+	        $context = Context::getContext()->cloneContext();
 		$context->shop = clone ($context->shop);
-
-        if (is_null($id_lang))
-            $id_lang = $context->language->id;
-			
+	
+	        if (is_null($id_lang))
+	            $id_lang = $context->language->id;
+				
 		if (is_null($id_shop))
 			$id_shop = $context->shop->id;
+				
+	        $categories = '';
+	        $id_current = $id_category;
+		$shop = new Shop($id_shop);
+		$id_root = Category::getRootCategory($id_lang, $shop);
+		$id_home = Category::getHomeCategories($id_lang, false, $id_shop);
 			
-        $categories = '';
-        $id_current = $id_category;
-		$id_root = GCategories::getRoot($id_shop);
-		
-        while (true) {
-            $sql = 'SELECT c.id_parent, cl.* '
-     			 . 'FROM `' . _DB_PREFIX_ . 'category` c '
-    			 . 'LEFT JOIN `' . _DB_PREFIX_ . 'category_lang` cl '
-     			 . 'ON (cl.`id_category` = c.`id_category` '
-        		 . 'AND `id_lang` = ' . (int) $id_lang . Shop::addSqlRestrictionOnLang('cl') . ') '
-                 . 'LEFT JOIN `' . _DB_PREFIX_ . 'gshoppingflux` gc ON (gc.`id_gcategory` = c.`id_category`) '
-            	 . 'WHERE gc.`id_gcategory` = ' . (int) $id_current . ' '
-				 . 'AND c.id_parent >= 0';
-            if (Shop::isFeatureActive() && Shop::getContext() == Shop::CONTEXT_SHOP)
-            	$sql .= ' AND gc.`id_shop` = ' . (int)$id_shop;
-            $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+	        while (true) {
+	        	
+			$sql = 'SELECT c.id_parent, cl.* '
+		     	. 'FROM `' . _DB_PREFIX_ . 'category` c '
+		    	. 'LEFT JOIN `' . _DB_PREFIX_ . 'category_lang` cl '
+		     	. 'ON (cl.`id_category` = c.`id_category` '
+			. 'AND `id_lang` = ' . (int) $id_lang . Shop::addSqlRestrictionOnLang('cl') . ') '
+			. 'LEFT JOIN `' . _DB_PREFIX_ . 'gshoppingflux` gc ON (gc.`id_gcategory` = c.`id_category`) '
+			. 'WHERE gc.`id_gcategory` = ' . (int) $id_current . ' '
+			. 'AND c.id_parent >= 0';
 			
+			if (Shop::isFeatureActive() && Shop::getContext() == Shop::CONTEXT_SHOP)
+			    $sql .= ' AND gc.`id_shop` = ' . (int)$id_shop;
+			    
+			$result = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+				
 			if (isset($result[0])){
 				$categories = $result[0]['name'] . ' > ' . $categories;				
 				$id_current = $result[0]['id_parent'];
 			}
 			
-			if (!$result || ($result[0]['id_category'] == $id_root)){
+			if ( !$result
+			  || ($result[0]['id_category'] == $id_home[0]['id_category']) 
+			  || ($result[0]['id_category'] == $id_root->id_category) ){
 				$categories = substr($categories, 0, -3);
 				return $categories;
 			}
-        }
-		
-    }
+			
+	        }
+			
+	}
 
 }
