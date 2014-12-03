@@ -36,7 +36,7 @@ class GCategories
 			 
 		$ret = Db::getInstance()->executeS($sql);
 		foreach($ret as $k => $v){
-			$ret[$k]['breadcrumb'] = self::getBreadcrumbCategory($v['id_gcategory'], (int)$id_lang);
+			$ret[$k]['breadcrumb'] = self::getPath($v['id_gcategory'], '', (int)$id_lang, (int)$id_shop);
 			if(empty($ret[$k]['breadcrumb']))$ret[$k]['breadcrumb']=$v['cat_name'];
 		}
 		
@@ -50,6 +50,8 @@ class GCategories
 
 	public static function getCategLang($id_gcategory, $id_shop)
 	{
+		global $cookie;
+		
 		$ret = Db::getInstance()->executeS('
 			SELECT g.*, gl.gcategory, gl.id_lang, cl.name as gcat_name
 			FROM '._DB_PREFIX_.'gshoppingflux g
@@ -66,7 +68,7 @@ class GCategories
 			$gcateg[$line['id_lang']] = Tools::safeOutput($line['gcategory']);
 		}
 		
-		$ret[0]['breadcrumb'] = self::getBreadcrumbCategory((int)$id_gcategory);
+		$ret[0]['breadcrumb'] = self::getPath((int)$id_gcategory, '', $cookie->id_lang, $id_shop);
 		if(empty($ret[0]['breadcrumb']) || $ret[0]['breadcrumb']==' > ')$ret[0]['breadcrumb']=$ret[0]['gcat_name'];
 
 		return array('breadcrumb' => $ret[0]['breadcrumb'], 'gcategory' => $gcateg, 'export' => $ret[0]['export'], 'condition' => $ret[0]['condition'], 'availability' => $ret[0]['availability'], 'gender' => $ret[0]['gender'], 'age_group' => $ret[0]['age_group']);
@@ -98,6 +100,7 @@ class GCategories
 			'gshoppingflux_lang',
 			array(
 				'id_gcategory'=>(int)$id_category,
+
 				'id_lang'=>(int)$id_lang,
 				'id_shop'=>(int)$id_shop,
 				'gcategory'=>pSQL($categ)
@@ -150,54 +153,24 @@ class GCategories
 		Db::getInstance()->delete('gshoppingflux', 'id_gcategory = '.(int)$id_gcategory.' AND id_shop = '.(int)$id_shop);
 		Db::getInstance()->delete('gshoppingflux_lang', 'id_gcategory = '.(int)$id_gcategory);
 	}
-
-	public static function getBreadcrumbCategory($id_category, $id_lang = null, $id_shop = null)
-	{
-	        $context = Context::getContext()->cloneContext();
-		$context->shop = clone ($context->shop);
 	
-	        if (is_null($id_lang))
-	            $id_lang = $context->language->id;
-				
-		if (is_null($id_shop))
-			$id_shop = $context->shop->id;
-				
-	        $categories = '';
-	        $id_current = $id_category;
+	public static function getPath($id_category, $path = '', $id_lang = null, $id_shop = null)
+	{		
+		$category = new Category(intval($id_category), intval($id_lang), intval($id_shop));
 		$shop = new Shop($id_shop);
-		$id_root = Category::getRootCategory($id_lang, $shop);
-		$id_home = Category::getHomeCategories($id_lang, false, $id_shop);
-			
-	        while (true) {
-	        	
-			$sql = 'SELECT c.id_parent, cl.* '
-		     	. 'FROM `' . _DB_PREFIX_ . 'category` c '
-		    	. 'LEFT JOIN `' . _DB_PREFIX_ . 'category_lang` cl '
-		     	. 'ON (cl.`id_category` = c.`id_category` '
-			. 'AND `id_lang` = ' . (int) $id_lang . Shop::addSqlRestrictionOnLang('cl') . ') '
-			. 'LEFT JOIN `' . _DB_PREFIX_ . 'gshoppingflux` gc ON (gc.`id_gcategory` = c.`id_category`) '
-			. 'WHERE gc.`id_gcategory` = ' . (int) $id_current . ' '
-			. 'AND c.id_parent >= 0';
-			
-			if (Shop::isFeatureActive() && Shop::getContext() == Shop::CONTEXT_SHOP)
-			    $sql .= ' AND gc.`id_shop` = ' . (int)$id_shop;
-			    
-			$result = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
-				
-			if (isset($result[0])){
-				$categories = $result[0]['name'] . ' > ' . $categories;				
-				$id_current = $result[0]['id_parent'];
-			}
-			
-			if ( !$result
-			  || ($result[0]['id_category'] == $id_home[0]['id_category']) 
-			  || ($result[0]['id_category'] == $id_root->id_category) ){
-				$categories = substr($categories, 0, -3);
-				return $categories;
-			}
-			
-	        }
-			
+		$root = Category::getRootCategory($id_lang, $shop);
+		
+		if (!Validate::isLoadedObject($category) || $category->id_category == $root->id_category)
+			return ($path);
+		
+		$pipe = ' > ';
+
+		$category_name =  preg_replace('/^[0-9]+\./', '', $category->name);
+		
+		if ($path != $category_name)
+			$path = $category_name.($path!='' ? $pipe.$path : '');
+		
+		return self::getPath(intval($category->id_parent), $path, $id_lang, $id_shop);
 	}
 
 }
