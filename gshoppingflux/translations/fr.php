@@ -4,9 +4,9 @@ global $_MODULE;
 $_MODULE = array();
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_b32b00665b88e4bbd8b4650997a31dda'] = 'Google Shopping Flux';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_b6e6fc6097a65ff1ad5f6188063e85b7'] = 'Exportez vos produits vers Google Merchant Center, facilement.';
-$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_f4534745973c6f8b468f6182c9623658'] = 'Exemple de Catégorie Google > Exemple de sous-catégorie Google > etc.';
+$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_29de2b388c4dbba0f83de46d285d8a08'] = 'Exemple de Catégorie Google > Sous-Catégorie Google > etc.';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_efc226b17e0532afff43be870bff0de7'] = 'Les paramètres ont été mis à jour.';
-$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_5e3903117d4a7f01eb5efd86f5053e47'] = 'produits exporté(s)';
+$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_5e3903117d4a7f01eb5efd86f5053e47'] = 'produits exportés';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_163cd5a7b866c8ce6df50d2224885b20'] = 'déclinaisons.';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_8b024bfb59bcbfcbae1bb593eb43d963'] = 'Impossible de mettre à jour les paramètres pour la boutique suivante : %s';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_ea4e267b5f96c170f275f9b59713d185'] = 'La catégorie Google a été mise à jour.';
@@ -21,7 +21,7 @@ $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_a52ab216dd03c49902ff2a66d8c12
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_3f64b2beede1082fd32ddb0bf11a641f'] = 'Meta description';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_63d5049791d9d79d86e9a108b0a999ca'] = 'Référence';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_8284ae5df53e6e7ffc1f2cc67ae68765'] = 'Référence fournisseur';
-$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_f8235ee68ea516cb3717f782ce711a07'] = 'Veuillez vous reporter à la page <a href="http://support.google.com/merchants/answer/188494" target="_blank">Google Shopping Products Feed Specification</a> si vous n\'avez pas idée de comment paramétrer ces options. <br /> Si tous les produits de votre boutique correspondent à la même catégorie Google Shopping, vous pouvez lier cette catégorie Google Shopping à votre catégorie Accueil dans la liste ci-dessous, toutes les sous-catégories hériteront du même paramétrage. Inutile de remplir les champs de chaque catégorie. <br /> Les produits situés dans des catégories non liées à des catégories Google Shopping seront exportés dans la catégorie Google Shopping liée à la catégorie parente la plus proche.';
+$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_f8235ee68ea516cb3717f782ce711a07'] = 'Veuillez vous reporter à la page Google Shopping Products Feed Specification si vous n\'avez pas idée de comment paramétrer ces options.  Si tous les produits de votre boutique correspondent à la même catégorie Google Shopping, vous pouvez lier cette catégorie Google Shopping à votre catégorie Accueil dans la liste ci-dessous, toutes les sous-catégories hériteront du même paramétrage. Inutile de remplir les champs de chaque catégorie.  Les produits situés dans des catégories non liées à des catégories Google Shopping seront exportés dans la catégorie Google Shopping liée à la catégorie parente la plus proche.';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_3225a10b07f1580f10dee4abc3779e6c'] = 'Paramètres';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_baf15503436fc1258776bc08749a8255'] = 'Type de description';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_fe8bac2727b81eec04100eddcbf0195c'] = 'Choisissez le type de description';
@@ -50,7 +50,6 @@ $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_aea85c68958897b16f69a15fb4efe
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_f041d2b1675750922a609743c2091963'] = 'Exporter l\'indication \"En solde\"';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_c2f295eb49abe9471f1d1fde92a63c44'] = 'Générer les fichiers à la racine du site';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_7f4cbf9258feb3ac9eeb552b0280bdf3'] = 'Enregistrer et exporter';
-$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_0a112e5da975d8eaf28df9219c397764'] = 'Toutes les quantités des déclinaisons de produit actives seront changées.';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_7a1920d61156abc05a60135aefe8bc67'] = 'Par défaut';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_84b1d9e9d768f978dc159df5ea33b7c4'] = 'Produits neufs';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_09fd472ac52606d7cadc93dffe49d0b9'] = 'Occasions';
@@ -90,6 +89,7 @@ $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_0057f77eeace28dd803c911f4a74f
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_12d1aae125b220ad89fcfdd2d309a41e'] = 'Configurez cette URL dans votre compte Google Merchant Center.';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_9684181a796d22fe88f102b48e74d554'] = 'Installez une tâche CRON afin de mettre à jour le flux régulièrement.';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_06baba6ffdf0d3921d7a79beeb56dda3'] = 'Notez bien que l\'option Multiboutique étant activée, vous devrez donc lancer plusieurs tâches CRON, une pour chaque boutique.';
+$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_51548ad3a32e52964c8399c449457e07'] = 'Aide sur le forum : <a href="http://www.prestashop.com/forums/topic/381033-module-gratuit-google-shopping-flux/" target="_blank">http://www.prestashop.com/forums/topic/381033-module-gratuit-google-shopping-flux/</a>';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_ec043a031d140b4bdda960e67b8d06cf'] = 'Information sur les fichiers';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_cab6b4ef90641caca74644cd10a41091'] = 'Liens vers les fichiers générés : ';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_35b5ee0fe068282ad7e55fc5d2177534'] = 'Génération automatique des fichiers : ';
