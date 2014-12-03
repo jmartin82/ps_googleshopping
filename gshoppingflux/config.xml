@@ -2,7 +2,7 @@
 <module>
 	<name>gshoppingflux</name>
 	<displayName><![CDATA[Google Shopping Flux]]></displayName>
-	<version><![CDATA[1.5.3]]></version>
+	<version><![CDATA[1.5.4]]></version>
 	<description><![CDATA[Export your products to Google Merchant Center, easily.]]></description>
 	<author><![CDATA[DiMooz, from GoogleShopping module made by Jordi.]]></author>
 	<tab><![CDATA[smart_shopping]]></tab>
