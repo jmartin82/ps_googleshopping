@@ -1368,16 +1368,16 @@ class GShoppingFlux extends Module
     
     private function generateFile($lang, $id_shop)
     {		
-		$id_lang = (int)$lang['id_lang'];	
-		$shop = new Shop($id_shop);
-		
-		// Get module configuration for this shop
-		$module_conf = $this->getConfigFieldsValues($id_shop);
-		
-		// Init categories special attributes : Google's matching category, gender, age_group...
-		$this->getGCategValues($id_lang, $id_shop);
-		
-		// Init file_path value
+	$id_lang = (int)$lang['id_lang'];	
+	$shop = new Shop($id_shop);
+	
+	// Get module configuration for this shop
+	$module_conf = $this->getConfigFieldsValues($id_shop);
+	
+	// Init categories special attributes : Google's matching category, gender, age_group...
+	$this->getGCategValues($id_lang, $id_shop);
+	
+	// Init file_path value
         if ($module_conf['gen_file_in_root']) {
             $generate_file_path = dirname(__FILE__) .'/../../'. $this->_getOutputFileName($lang['iso_code'], $id_shop);
         } else {
@@ -1409,103 +1409,103 @@ class GShoppingFlux extends Module
         
         // File header 
         fwrite($googleshoppingfile, $xml);
-		
-		$sql = 'SELECT p.*, pl.*, ps.id_category_default as category_default, gc.*, gl.* ' //fl.*, 
-			 . 'FROM ' . _DB_PREFIX_ . 'product p '
-			 . 'LEFT JOIN ' . _DB_PREFIX_ . 'product_lang pl ON pl.id_product = p.id_product '
-			 . 'LEFT JOIN ' . _DB_PREFIX_ . 'product_shop ps ON ps.id_product = p.id_product '
-			 . 'LEFT JOIN ' . _DB_PREFIX_ . 'category c ON c.id_category = ps.id_category_default '
-			 . 'LEFT JOIN ' . _DB_PREFIX_ . 'gshoppingflux gc ON gc.id_gcategory = c.id_category '
-			 . 'LEFT JOIN ' . _DB_PREFIX_ . 'gshoppingflux_lang gl ON gl.id_gcategory = gc.id_gcategory '
-			 . 'WHERE p.active = 1 AND c.active = 1 AND gc.export = 1 '
-			 . 'AND pl.id_lang='.$id_lang.' AND gl.id_lang='.$id_lang;
-			 
-		// Multishops filter		
-		if (Configuration::get('PS_MULTISHOP_FEATURE_ACTIVE') && count(Shop::getShops(true, null, true)) > 1) {
-            $sql .= ' AND gc.id_shop = '.$id_shop.' AND pl.id_shop = '.$id_shop.' AND ps.id_shop = '.$id_shop;
+	
+	$sql = 'SELECT p.*, pl.*, ps.id_category_default as category_default, gc.*, gl.* ' //fl.*, 
+		 . 'FROM ' . _DB_PREFIX_ . 'product p '
+		 . 'LEFT JOIN ' . _DB_PREFIX_ . 'product_lang pl ON pl.id_product = p.id_product '
+		 . 'LEFT JOIN ' . _DB_PREFIX_ . 'product_shop ps ON ps.id_product = p.id_product '
+		 . 'LEFT JOIN ' . _DB_PREFIX_ . 'category c ON c.id_category = ps.id_category_default '
+		 . 'LEFT JOIN ' . _DB_PREFIX_ . 'gshoppingflux gc ON gc.id_gcategory = c.id_category '
+		 . 'LEFT JOIN ' . _DB_PREFIX_ . 'gshoppingflux_lang gl ON gl.id_gcategory = gc.id_gcategory '
+		 . 'WHERE p.active = 1 AND c.active = 1 AND gc.export = 1 '
+		 . 'AND pl.id_lang='.$id_lang.' AND gl.id_lang='.$id_lang;
+		 
+	// Multishops filter		
+	if (Configuration::get('PS_MULTISHOP_FEATURE_ACTIVE') && count(Shop::getShops(true, null, true)) > 1) {
+		$sql .= ' AND gc.id_shop = '.$id_shop.' AND pl.id_shop = '.$id_shop.' AND ps.id_shop = '.$id_shop;
         }
 		
-		// Check EAN13
-		if ($module_conf['no_gtin']!=1)
-			$sql .= ' AND p.ean13 != "" AND p.ean13 != 0';
-		
-		// Check BRAND
-		if ($module_conf['no_brand']!=1)
-			$sql .= ' AND p.id_manufacturer != "" AND p.id_manufacturer != 0';
+	// Check EAN13
+	if ($module_conf['no_gtin']!=1)
+		$sql .= ' AND p.ean13 != "" AND p.ean13 != 0';
+	
+	// Check BRAND
+	if ($module_conf['no_brand']!=1)
+		$sql .= ' AND p.id_manufacturer != "" AND p.id_manufacturer != 0';
 		
         $products = Db::getInstance()->ExecuteS($sql);
-		$count_products = 0;
-		$count_combinations = 0;
+	$count_products = 0;
+	$count_combinations = 0;
 		
         foreach ($products as $product)
-		{
-			$context = Context::getContext();
-			$context->language->id = $id_lang;
-			$context->shop->id = $id_shop;
-			$p = new Product($product['id_product'], true, $id_lang, $id_shop, $context);
-			$attributeCombinations = $p->getAttributeCombinations($id_lang);
-				
-			$product['gid'] = $product['id_product'];
-			if(count($attributeCombinations)>0 && $module_conf['export_attributes']==1){
-				$attr = array();	
-				$count_product_combin = (int)0;
-				foreach($attributeCombinations as $a => $attribute){
-					$attr[$attribute['id_product_attribute']][$attribute['id_attribute_group']] = $attribute;
-				}
-				foreach($attr as $id_attr => $v){
-					$count_product_combin++;	
-					foreach($v as $k => $a){
-						switch($k)
-						{
-							case $module_conf['color']:
-								$product['color'] = $a['attribute_name'];							
-								break;
-							
-							case $module_conf['material']:
-								$product['material'] = $a['attribute_name'];							
-								break;
-							
-							case $module_conf['pattern']:
-								$product['pattern'] = $a['attribute_name'];							
-								break;
-							
-							case $module_conf['size']:
-								$product['size'] = $a['attribute_name'];
-								break;
-						}						
-						$product['quantity'] = $a['quantity'];
-						$product['weight'] = $a['weight'];					
-					}
-					if(	empty($product['color']) && empty($product['material']) && empty($product['pattern']) && empty($product['size']) ) 
-					{	
-						$xml_googleshopping = $this->getItemXML($product, $lang, $id_shop);
-						fwrite($googleshoppingfile, $xml_googleshopping);
-						$count_products++;
-						continue 2;
-					}
-					
-					$product['gid'] = $product['id_product'].'-'.$count_product_combin;	
-					$product['item_group_id'] = $product['reference'];
-					if ($module_conf['mpn_type']=='supplier_reference' && !empty($product['supplier_reference']))
-						$product['item_group_id'] = $product['supplier_reference'];
-					if(empty($product['item_group_id']))
-						$product['item_group_id'] = $product['id_product'];
-					$xml_googleshopping = $this->getItemXML($product, $lang, $id_shop, $id_attr);
-					fwrite($googleshoppingfile, $xml_googleshopping);
-					$product['color'] = '';
-					$product['material'] = '';
-					$product['pattern'] = '';
-					$product['size'] = '';	
-					$count_combinations++;
-					
-				}
-						
-			} else {
-				$xml_googleshopping = $this->getItemXML($product, $lang, $id_shop);
-            	fwrite($googleshoppingfile, $xml_googleshopping);			
-			}
+	{
+		$context = Context::getContext();
+		$context->language->id = $id_lang;
+		$context->shop->id = $id_shop;
+		$p = new Product($product['id_product'], true, $id_lang, $id_shop, $context);
+		$attributeCombinations = $p->getAttributeCombinations($id_lang);
 			
-			$count_products++;
+		$product['gid'] = $product['id_product'];
+		if(count($attributeCombinations)>0 && $module_conf['export_attributes']==1){
+			$attr = array();	
+			$count_product_combin = (int)0;
+			foreach($attributeCombinations as $a => $attribute){
+				$attr[$attribute['id_product_attribute']][$attribute['id_attribute_group']] = $attribute;
+			}
+			foreach($attr as $id_attr => $v){
+				$count_product_combin++;	
+				foreach($v as $k => $a){
+					switch($k)
+					{
+						case $module_conf['color']:
+							$product['color'] = $a['attribute_name'];							
+							break;
+						
+						case $module_conf['material']:
+							$product['material'] = $a['attribute_name'];							
+							break;
+						
+						case $module_conf['pattern']:
+							$product['pattern'] = $a['attribute_name'];							
+							break;
+						
+						case $module_conf['size']:
+							$product['size'] = $a['attribute_name'];
+							break;
+					}						
+					$product['quantity'] = $a['quantity'];
+					$product['weight'] = $a['weight'];					
+				}
+				if( empty($product['color']) && empty($product['material']) && empty($product['pattern']) && empty($product['size']) ) 
+				{	
+					$xml_googleshopping = $this->getItemXML($product, $lang, $id_shop);
+					fwrite($googleshoppingfile, $xml_googleshopping);
+					$count_products++;
+					continue 2;
+				}
+				
+				$product['gid'] = $product['id_product'].'-'.$count_product_combin;	
+				$product['item_group_id'] = $product['reference'];
+				if ($module_conf['mpn_type']=='supplier_reference' && !empty($product['supplier_reference']))
+					$product['item_group_id'] = $product['supplier_reference'];
+				if(empty($product['item_group_id']))
+					$product['item_group_id'] = $product['id_product'];
+				$xml_googleshopping = $this->getItemXML($product, $lang, $id_shop, $id_attr);
+				fwrite($googleshoppingfile, $xml_googleshopping);
+				$product['color'] = '';
+				$product['material'] = '';
+				$product['pattern'] = '';
+				$product['size'] = '';	
+				$count_combinations++;
+				
+			}
+					
+		} else {
+			$xml_googleshopping = $this->getItemXML($product, $lang, $id_shop);
+    			fwrite($googleshoppingfile, $xml_googleshopping);			
+		}
+		
+		$count_products++;
 			
         }
         
