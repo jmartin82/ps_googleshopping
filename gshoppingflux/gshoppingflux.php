@@ -31,7 +31,7 @@ class GShoppingFlux extends Module
     { 
         $this->name    = 'gshoppingflux';
         $this->tab     = 'smart_shopping';
-        $this->version = '1.5.2';
+        $this->version = '1.5.4';
         $this->author  = 'DiMooz';
         
 		$this->bootstrap = true;
