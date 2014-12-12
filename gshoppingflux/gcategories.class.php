@@ -34,9 +34,11 @@ class GCategories
 			 . 'WHERE '.((!is_null($id_gcategory)) ? ' g.id_gcategory="'.(int)$id_gcategory.'" AND ' : '')
 			 . 'g.id_shop IN (0, '.(int)$id_shop.');';
 			 
-		$ret = Db::getInstance()->executeS($sql);
+		$ret = Db::getInstance()->executeS($sql);		
+		$shop = new Shop($id_shop);		
+		$root = Category::getRootCategory($id_lang, $shop);
 		foreach($ret as $k => $v){
-			$ret[$k]['breadcrumb'] = self::getPath($v['id_gcategory'], '', (int)$id_lang, (int)$id_shop);
+			$ret[$k]['breadcrumb'] = self::getPath($v['id_gcategory'], '', (int)$id_lang, (int)$id_shop, (int)$root->id_category);
 			if(empty($ret[$k]['breadcrumb']))$ret[$k]['breadcrumb']=$v['cat_name'];
 		}
 		
@@ -67,8 +69,10 @@ class GCategories
 		{
 			$gcateg[$line['id_lang']] = Tools::safeOutput($line['gcategory']);
 		}
-		
-		$ret[0]['breadcrumb'] = self::getPath((int)$id_gcategory, '', $cookie->id_lang, $id_shop);
+			
+		$shop = new Shop($id_shop);		
+		$root = Category::getRootCategory($cookie->id_lang, $shop);
+		$ret[0]['breadcrumb'] = self::getPath((int)$id_gcategory, '', $cookie->id_lang, $id_shop, $root->id_category);
 		if(empty($ret[0]['breadcrumb']) || $ret[0]['breadcrumb']==' > ')$ret[0]['breadcrumb']=$ret[0]['gcat_name'];
 
 		return array('breadcrumb' => $ret[0]['breadcrumb'], 'gcategory' => $gcateg, 'export' => $ret[0]['export'], 'condition' => $ret[0]['condition'], 'availability' => $ret[0]['availability'], 'gender' => $ret[0]['gender'], 'age_group' => $ret[0]['age_group']);
@@ -154,13 +158,11 @@ class GCategories
 		Db::getInstance()->delete('gshoppingflux_lang', 'id_gcategory = '.(int)$id_gcategory);
 	}
 	
-	public static function getPath($id_category, $path = '', $id_lang = null, $id_shop = null)
-	{		
+	public static function getPath($id_category, $path = '', $id_lang, $id_shop, $id_root)
+	{	
 		$category = new Category(intval($id_category), intval($id_lang), intval($id_shop));
-		$shop = new Shop($id_shop);
-		$root = Category::getRootCategory($id_lang, $shop);
 		
-		if (!Validate::isLoadedObject($category) || $category->id_category == $root->id_category)
+		if (!Validate::isLoadedObject($category) || $category->id_category == $id_root)
 			return ($path);
 		
 		$pipe = ' > ';
@@ -170,7 +172,7 @@ class GCategories
 		if ($path != $category_name)
 			$path = $category_name.($path!='' ? $pipe.$path : '');
 		
-		return self::getPath(intval($category->id_parent), $path, $id_lang, $id_shop);
+		return self::getPath(intval($category->id_parent), $path, $id_lang, $id_shop, $id_root);
 	}
 
 }

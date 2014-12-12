@@ -7,7 +7,9 @@ $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_b6e6fc6097a65ff1ad5f6188063e8
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_29de2b388c4dbba0f83de46d285d8a08'] = 'Exemple de Catégorie Google > Sous-Catégorie Google > etc.';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_efc226b17e0532afff43be870bff0de7'] = 'Les paramètres ont été mis à jour.';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_5e3903117d4a7f01eb5efd86f5053e47'] = 'produits exportés';
-$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_163cd5a7b866c8ce6df50d2224885b20'] = 'déclinaisons.';
+$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_51413bd72a85313bc087989f4e69c2f3'] = 'produits avec déclinaisons';
+$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_669f01a27b5b4dc48f10d9d548b1ea71'] = 'déclinaisons de produits';
+$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_99f21035c6dce0b341124060f2a31a5a'] = 'Total articles exportés ';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_8b024bfb59bcbfcbae1bb593eb43d963'] = 'Impossible de mettre à jour les paramètres pour la boutique suivante : %s';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_ea4e267b5f96c170f275f9b59713d185'] = 'La catégorie Google a été mise à jour.';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_bc02e8f55cf4a9c0faaa8dfefb864043'] = 'Vous ne pouvez pas gérer les catégories Google depuis un contexte \"Toutes les boutiques\" ou \"Groupe de boutiques\", veuillez sélectionner directement la boutique que vous voulez éditer.';

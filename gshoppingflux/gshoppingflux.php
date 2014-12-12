@@ -31,7 +31,7 @@ class GShoppingFlux extends Module
     { 
         $this->name    = 'gshoppingflux';
         $this->tab     = 'smart_shopping';
-        $this->version = '1.5.4';
+        $this->version = '1.5.5';
         $this->author  = 'DiMooz';
         
 		$this->bootstrap = true;
@@ -106,7 +106,7 @@ class GShoppingFlux extends Module
 	{
 		return (Db::getInstance()->execute('
 		CREATE TABLE IF NOT EXISTS `'._DB_PREFIX_.'gshoppingflux` (
-			`id_gcategory` INT(11) UNSIGNED NOT NULL PRIMARY KEY,
+			`id_gcategory` INT(11) UNSIGNED NOT NULL,
 			`export` INT(11) UNSIGNED NOT NULL,
 			`condition` VARCHAR( 12 ) NOT NULL,
 			`availability` VARCHAR( 12 ) NOT NULL,
@@ -323,8 +323,11 @@ class GShoppingFlux extends Module
 						$get_file_url = $this->uri . 'modules/' . $this->getName() . '/file_exports/'. $this->_getOutputFileName($lang['iso_code'], $shop_id);
 					}
 					$confirm .= '<br /> <a href="'.$get_file_url.'" target="_blank">'.$get_file_url . '</a> : '.$count[$i]['nb_products'].' '.$this->l('products exported');
-					if($count[$i]['nb_combinations']>0)
-						$confirm .= ', '.$count[$i]['nb_combinations'].' '.$this->l(' attributes combinations.');
+					if($count[$i]['nb_combinations']>0){
+						$confirm .= ': '.$count[$i]['nb_prod_attr'].' '.$this->l('products with attributes');
+						$confirm .= ', '.$count[$i]['nb_combinations'].' '.$this->l('attributes combinations');						
+						$confirm .= '.<br/> '.$this->l('Total exported items').': '.($count[$i]['nb_combinations']-$count[$i]['nb_prod_attr']+$count[$i]['nb_products']);
+					}
 					else $confirm .= '.';
 				}
 				$this->_html .= $this->displayConfirmation(html_entity_decode($confirm));
@@ -1130,7 +1133,7 @@ class GShoppingFlux extends Module
             
             $output .= '<a href="' . $get_file_url . '">' . $get_file_url . '</a> <br /> ';
         }
-		$info_cron = $this->uri . 'modules/' . $this->getName() . '/cron.php';
+		$info_cron = '<a href="'.$this->uri . 'modules/'.$this->getName().'/cron.php" target="_blank">'.$this->uri . 'modules/'.$this->getName().'/cron.php</a>';
 		if (count($languages) > 1)
 			$files_desc = $this->l('Configure these URLs in your Google Merchant Center account.');
 		else
@@ -1291,6 +1294,7 @@ class GShoppingFlux extends Module
 			{				
 				$parentsql = $sql . ' AND k.id_category = '.$parent_id.';';						
 				$parentret = Db::getInstance()->executeS($parentsql);
+				if(!count($parentret)) break;
 				foreach($parentret as $parentcat)
 				{
 					$parent_id = $parentcat['id_parent'];
@@ -1374,7 +1378,9 @@ class GShoppingFlux extends Module
     private function generateFile($lang, $id_shop)
     {		
 		$id_lang = (int)$lang['id_lang'];	
-		$shop = new Shop($id_shop);
+		$this->shop = new Shop($id_shop);
+		$root = Category::getRootCategory($id_lang, $this->shop);
+		$this->id_root = $root->id_category;
 		
 		// Get module configuration for this shop
 		$module_conf = $this->getConfigFieldsValues($id_shop);
@@ -1395,7 +1401,7 @@ class GShoppingFlux extends Module
         $xml .= '<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">' . "\n\n";
 		$xml .= '<channel>' . "\n";		
         // Shop name
-		$xml .= '<title><![CDATA['.$shop->name.']]></title>' . "\n";		
+		$xml .= '<title><![CDATA['.$this->shop->name.']]></title>' . "\n";		
 		 // Shop description
 		$xml .= '<description><![CDATA['.$this->getShopDescription($id_lang, $id_shop).']]></description>' . "\n";
         $xml .= '<link href="' . htmlspecialchars($this->uri, self::REPLACE_FLAGS, self::CHARSET, false) . '" rel="alternate" type="text/html"/>' . "\n";
@@ -1441,6 +1447,7 @@ class GShoppingFlux extends Module
         $products = Db::getInstance()->ExecuteS($sql);
 		$count_products = 0;
 		$count_combinations = 0;
+		$count_attr = array();
 		
         foreach ($products as $product)
 		{
@@ -1502,15 +1509,17 @@ class GShoppingFlux extends Module
 					$product['pattern'] = '';
 					$product['size'] = '';	
 					$count_combinations++;
+					$count_attr[$product['id_product']] = 1;
 					
 				}
 						
 			} else {
 				$xml_googleshopping = $this->getItemXML($product, $lang, $id_shop);
-            	fwrite($googleshoppingfile, $xml_googleshopping);			
+            	fwrite($googleshoppingfile, $xml_googleshopping);
+				$count_products++;		
 			}
 			
-			$count_products++;
+			
 			
         }
         
@@ -1519,7 +1528,7 @@ class GShoppingFlux extends Module
         fclose($googleshoppingfile);
 					
         @chmod($generate_file_path, 0777);
-        return array('nb_products' => $count_products,'nb_combinations' => $count_combinations);
+        return array('nb_products' => ($count_products+count($count_attr)),'nb_combinations' => $count_combinations,'nb_prod_attr' => count($count_attr));
 		
     }
 	
@@ -1541,9 +1550,6 @@ class GShoppingFlux extends Module
 		
 		if(!$combination)
 			$product['quantity'] = StockAvailable::getQuantityAvailableByProduct($product['id_product'], 0, $id_shop);
-		
-		// Init categories special attributes : Google's matching category, gender, age_group...
-		$this->getGCategValues($id_lang, $id_shop);
 		
 			// Exclude non-available products
 			if($module_conf['export_nap']===0 && $product['quantity'] < 1) return;
@@ -1599,6 +1605,7 @@ class GShoppingFlux extends Module
                 $image_type = 'large_default';            
             foreach ($images as $im) {
                 $image = $this->context->link->getImageLink($product['link_rewrite'], $product['id_product'] . '-' . $im['id_image'], $image_type);
+				$image = preg_replace('*http://'.Tools::getHttpHost().'/*',$this->uri,$image);
                 $xml_googleshopping .= '<g:image_link><![CDATA[' . $image . ']]></g:image_link>' . "\n";
                 // max images by product
                 if (++$nbimages == 10)
@@ -1613,7 +1620,7 @@ class GShoppingFlux extends Module
 				$xml_googleshopping .= '<g:condition><![CDATA[' . $product['condition'] . ']]></g:condition>' . "\n";
 			
 			// Shop category
-            $breadcrumb = GCategories::getPath($product['id_gcategory'], '', $id_lang, $id_shop);
+            $breadcrumb = GCategories::getPath($product['id_gcategory'], '', $id_lang, $id_shop, $this->id_root);
             $xml_googleshopping .= '<g:product_type><![CDATA[' . $breadcrumb . ']]></g:product_type>' . "\n";
 			
             // Matching Google category, or parent categories' one				
