@@ -162,7 +162,7 @@ class GCategories
 	{	
 		$category = new Category(intval($id_category), intval($id_lang), intval($id_shop));
 		
-		if (!Validate::isLoadedObject($category) || $category->id_category == $id_root)
+		if (!Validate::isLoadedObject($category) || $category->id_category == $id_root  || $category->active == 0 )
 			return ($path);
 		
 		$pipe = ' > ';
