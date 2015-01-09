@@ -1433,7 +1433,7 @@ class GShoppingFlux extends Module
 			 
 		// Multishops filter		
 		if (Configuration::get('PS_MULTISHOP_FEATURE_ACTIVE') && count(Shop::getShops(true, null, true)) > 1) {
-            $sql .= ' AND gc.id_shop = '.$id_shop.' AND pl.id_shop = '.$id_shop.' AND ps.id_shop = '.$id_shop;
+            $sql .= ' AND gc.id_shop = '.$id_shop.' AND pl.id_shop = '.$id_shop.' AND ps.id_shop = '.$id_shop.' AND gl.id_shop = '.$id_shop;
         }
 		
 		// Check EAN13
