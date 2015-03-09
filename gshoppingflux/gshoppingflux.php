@@ -113,7 +113,7 @@ class GShoppingFlux extends Module
 			`gender` VARCHAR( 8 ) NOT NULL,
 			`age_group` VARCHAR( 8 ) NOT NULL,
 			`id_shop` INT(11) UNSIGNED NOT NULL,
-			INDEX (`id_shop`)
+			PRIMARY KEY (`id_shop`)
 		) ENGINE = '._MYSQL_ENGINE_.' CHARACTER SET utf8 COLLATE utf8_general_ci;') &&
 			Db::getInstance()->execute('
 			 CREATE TABLE IF NOT EXISTS `'._DB_PREFIX_.'gshoppingflux_lang` (
@@ -121,7 +121,7 @@ class GShoppingFlux extends Module
 			`id_lang` INT(11) UNSIGNED NOT NULL,
 			`id_shop` INT(11) UNSIGNED NOT NULL,
 			`gcategory` VARCHAR( 255 ) NOT NULL,
-			INDEX ( `id_gcategory` , `id_lang`, `id_shop`)
+			PRIMARY KEY ( `id_gcategory` , `id_lang`, `id_shop`)
 		) ENGINE = '._MYSQL_ENGINE_.' CHARACTER SET utf8 COLLATE utf8_general_ci;'));
 	}
 
