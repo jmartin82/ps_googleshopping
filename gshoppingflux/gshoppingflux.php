@@ -1562,7 +1562,18 @@ class GShoppingFlux extends Module
             $product_link = $this->context->link->getProductLink((int) ($product['id_product']), $product['link_rewrite'], $cat_link_rew, $product['ean13'], (int) ($product['id_lang']), $id_shop, 0, true);
             
             // Product name
-			$title_crop = $product['name'];
+		$title_crop = $product['name'];
+		// Michael Hjulskov
+		//  Product color attribute, if any
+		if(!empty($product['color']))	
+			$title_crop .= ' ' . $product['color'];
+		if(!empty($product['material']))	
+			$title_crop .= ' ' . $product['material'];
+		if(!empty($product['pattern']))	
+			$title_crop .= ' ' . $product['pattern'];
+		if(!empty($product['size']))
+			$title_crop .= ' ' . $product['size'];
+		// END Michael Hjulskov			
             if (strlen($product['name']) > $title_limit) {
                 $title_crop = substr($title_crop, 0, ($title_limit - 1));
                 $title_crop = substr($title_crop, 0, strrpos($title_crop, " "));
