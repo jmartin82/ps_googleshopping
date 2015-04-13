@@ -155,7 +155,7 @@ class GShoppingFlux extends Module
 					foreach($languages as $key => $lang)
 						$str[$lang['id_lang']] = $this->l('Google Category Example > Google Sub-Category Example');
 					$condition = 'new';				
-					$availability = 'in_stock';	
+					$availability = 'in stock';	
 				}
 				GCategories::add($cat['id_category'], $str, $cat['active'], $condition, $availability, $gender, $age_group, $id_shop);					
 			}
