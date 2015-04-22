@@ -31,7 +31,7 @@ class GShoppingFlux extends Module
     { 
         $this->name    = 'gshoppingflux';
         $this->tab     = 'smart_shopping';
-        $this->version = '1.5.5';
+        $this->version = '1.5.6';
         $this->author  = 'DiMooz';
         
 		$this->bootstrap = true;
@@ -290,7 +290,7 @@ class GShoppingFlux extends Module
 			$updated &= Configuration::updateValue('GS_GENDER', Tools::getValue('gender'), false, (int)$shop_group_id, (int)$shop_id);
 			$updated &= Configuration::updateValue('GS_AGE_GROUP', Tools::getValue('age_group'), false, (int)$shop_group_id, (int)$shop_id);
 			$updated &= Configuration::updateValue('GS_ATTRIBUTES', Tools::getValue('export_attributes'), false, (int)$shop_group_id, (int)$shop_id);
-			$updated &= Configuration::updateValue('GS_COLOR', Tools::getValue('color'), false, (int)$shop_group_id, (int)$shop_id);
+			$updated &= Configuration::updateValue('GS_COLOR', implode(';', Tools::getValue('color')), false, (int)$shop_group_id, (int)$shop_id);
 			$updated &= Configuration::updateValue('GS_MATERIAL', Tools::getValue('material'), false, (int)$shop_group_id, (int)$shop_id);
 			$updated &= Configuration::updateValue('GS_PATTERN', Tools::getValue('pattern'), false, (int)$shop_group_id, (int)$shop_id);
 			$updated &= Configuration::updateValue('GS_SIZE', Tools::getValue('size'), false, (int)$shop_group_id, (int)$shop_id);
@@ -451,7 +451,7 @@ class GShoppingFlux extends Module
 			'languages' => $this->context->controller->getLanguages(),
 			'id_language' => $this->context->language->id
 		);
-		
+		$helper->tpl_vars['fields_value']['color[]'] = explode(';', $helper->tpl_vars['fields_value']['color']);
 		$shops = Shop::getShops(true, null, true);
 		$context = Context::getContext();
 		$id_lang = $context->language->id;
@@ -566,14 +566,16 @@ class GShoppingFlux extends Module
 					),
 					array(
 						'type' => 'select',
+						'multiple' => true,
 						'label' => $this->l('Products color attribute'),
-						'name' => 'color',
+						'name' => 'color[]',
 						'default_value' => $helper->tpl_vars['fields_value']['color'],
 						'options' => array(
 							'query' => $attributes,
 							'id' => 'id_attribute_group',
 							'name' => 'name'
-						)
+						),
+						'desc' => $this->l('Hold [Ctrl] key pressed to select multiple color attributes.')
 					),
 					array(
 						'type' => 'select',
@@ -819,7 +821,7 @@ class GShoppingFlux extends Module
 			'gender' => $gender,
 			'age_group' => $age_group,
 			'export_attributes' => (float)$export_attributes,
-			'color' => (float)$color,
+			'color' => $color,
 			'material' => (float)$material,
 			'pattern' => (float)$pattern,
 			'size' => (float)$size,
@@ -1376,103 +1378,106 @@ class GShoppingFlux extends Module
     }
     
     private function generateFile($lang, $id_shop)
-    {		
-		$id_lang = (int)$lang['id_lang'];	
-		$this->shop = new Shop($id_shop);
-		$root = Category::getRootCategory($id_lang, $this->shop);
-		$this->id_root = $root->id_category;
+	{		
+	$id_lang = (int)$lang['id_lang'];	
+	$this->shop = new Shop($id_shop);
+	$root = Category::getRootCategory($id_lang, $this->shop);
+	$this->id_root = $root->id_category;
+	
+	// Get module configuration for this shop
+	$module_conf = $this->getConfigFieldsValues($id_shop);
+	
+	// Init categories special attributes : Google's matching category, gender, age_group...
+	$this->getGCategValues($id_lang, $id_shop);
+	
+	// Init file_path value
+	if ($module_conf['gen_file_in_root']) {
+	    $generate_file_path = dirname(__FILE__) .'/../../'. $this->_getOutputFileName($lang['iso_code'], $id_shop);
+	} else {
+	    $generate_file_path = dirname(__FILE__) . '/file_exports/'. $this->_getOutputFileName($lang['iso_code'], $id_shop);
+	}
+	
+	$meta = Meta::getMetaByPage('index', $id_lang);
+	// Google Shopping XML
+	$xml = '<?xml version="1.0" encoding="'.self::CHARSET.'" ?>' . "\n";
+	$xml .= '<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">' . "\n\n";
+	$xml .= '<channel>' . "\n";		
+	// Shop name
+	$xml .= '<title><![CDATA['.$this->shop->name.']]></title>' . "\n";		
+	// Shop description
+	$xml .= '<description><![CDATA['.$this->getShopDescription($id_lang, $id_shop).']]></description>' . "\n";
+	$xml .= '<link href="' . htmlspecialchars($this->uri, self::REPLACE_FLAGS, self::CHARSET, false) . '" rel="alternate" type="text/html"/>' . "\n";
+	$xml .= '<image>' . "\n";
+	$xml .= '<title><![CDATA[' . Configuration::get('PS_SHOP_NAME') . ']]></title>' . "\n";
+	$xml .= '<url>' . htmlspecialchars($this->uri, self::REPLACE_FLAGS, self::CHARSET, false) . 'img/logo.jpg</url>' . "\n";
+	$xml .= '<link>' . htmlspecialchars($this->uri, self::REPLACE_FLAGS, self::CHARSET, false) . '</link>' . "\n";
+	$xml .= '</image>' . "\n";
+	$xml .= '<modified>' . date('Y-m-d') . 'T01:01:01Z</modified>' . "\n";
+	$xml .= '<author>'."\n".'<name>' . htmlspecialchars(Configuration::get('PS_SHOP_NAME'), self::REPLACE_FLAGS, self::CHARSET, false)  . '</name>'."\n".'</author>' . "\n\n";
+	
+	$googleshoppingfile = fopen($generate_file_path, 'w');
+	
+	// Add UTF-8 byte order mark
+	fwrite($googleshoppingfile, pack("CCC", 0xef, 0xbb, 0xbf));
+	
+	// File header 
+	fwrite($googleshoppingfile, $xml);
 		
-		// Get module configuration for this shop
-		$module_conf = $this->getConfigFieldsValues($id_shop);
+	$sql = 'SELECT p.*, pl.*, ps.id_category_default as category_default, gc.*, gl.* ' //fl.*, 
+		 . 'FROM ' . _DB_PREFIX_ . 'product p '
+		 . 'LEFT JOIN ' . _DB_PREFIX_ . 'product_lang pl ON pl.id_product = p.id_product '
+		 . 'LEFT JOIN ' . _DB_PREFIX_ . 'product_shop ps ON ps.id_product = p.id_product '
+		 . 'LEFT JOIN ' . _DB_PREFIX_ . 'category c ON c.id_category = ps.id_category_default '
+		 . 'LEFT JOIN ' . _DB_PREFIX_ . 'gshoppingflux gc ON gc.id_gcategory = c.id_category '
+		 . 'LEFT JOIN ' . _DB_PREFIX_ . 'gshoppingflux_lang gl ON gl.id_gcategory = gc.id_gcategory '
+		 . 'WHERE p.active = 1 AND c.active = 1 AND gc.export = 1 '
+		 . 'AND pl.id_lang='.$id_lang.' AND gl.id_lang='.$id_lang;
+		 
+	// Multishops filter		
+	if (Configuration::get('PS_MULTISHOP_FEATURE_ACTIVE') && count(Shop::getShops(true, null, true)) > 1) {
+	    $sql .= ' AND gc.id_shop = '.$id_shop.' AND pl.id_shop = '.$id_shop.' AND ps.id_shop = '.$id_shop.' AND gl.id_shop = '.$id_shop;
+	}
 		
-		// Init categories special attributes : Google's matching category, gender, age_group...
-		$this->getGCategValues($id_lang, $id_shop);
+	// Check EAN13
+	if ($module_conf['no_gtin']!=1)
+		$sql .= ' AND p.ean13 != "" AND p.ean13 != 0';
+	
+	// Check BRAND
+	if ($module_conf['no_brand']!=1)
+		$sql .= ' AND p.id_manufacturer != "" AND p.id_manufacturer != 0';
 		
-		// Init file_path value
-        if ($module_conf['gen_file_in_root']) {
-            $generate_file_path = dirname(__FILE__) .'/../../'. $this->_getOutputFileName($lang['iso_code'], $id_shop);
-        } else {
-            $generate_file_path = dirname(__FILE__) . '/file_exports/'. $this->_getOutputFileName($lang['iso_code'], $id_shop);
-        }
-        
-		$meta = Meta::getMetaByPage('index', $id_lang);
-        // Google Shopping XML
-        $xml = '<?xml version="1.0" encoding="'.self::CHARSET.'" ?>' . "\n";
-        $xml .= '<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">' . "\n\n";
-		$xml .= '<channel>' . "\n";		
-        // Shop name
-		$xml .= '<title><![CDATA['.$this->shop->name.']]></title>' . "\n";		
-		 // Shop description
-		$xml .= '<description><![CDATA['.$this->getShopDescription($id_lang, $id_shop).']]></description>' . "\n";
-        $xml .= '<link href="' . htmlspecialchars($this->uri, self::REPLACE_FLAGS, self::CHARSET, false) . '" rel="alternate" type="text/html"/>' . "\n";
-		$xml .= '<image>' . "\n";
-		$xml .= '<title><![CDATA[' . Configuration::get('PS_SHOP_NAME') . ']]></title>' . "\n";
-		$xml .= '<url>' . htmlspecialchars($this->uri, self::REPLACE_FLAGS, self::CHARSET, false) . 'img/logo.jpg</url>' . "\n";
-		$xml .= '<link>' . htmlspecialchars($this->uri, self::REPLACE_FLAGS, self::CHARSET, false) . '</link>' . "\n";
-		$xml .= '</image>' . "\n";
-        $xml .= '<modified>' . date('Y-m-d') . 'T01:01:01Z</modified>' . "\n";
-        $xml .= '<author>'."\n".'<name>' . htmlspecialchars(Configuration::get('PS_SHOP_NAME'), self::REPLACE_FLAGS, self::CHARSET, false)  . '</name>'."\n".'</author>' . "\n\n";
-        
-        $googleshoppingfile = fopen($generate_file_path, 'w');
-        
-        // Add UTF-8 byte order mark
-        fwrite($googleshoppingfile, pack("CCC", 0xef, 0xbb, 0xbf));
-        
-        // File header 
-        fwrite($googleshoppingfile, $xml);
-		
-		$sql = 'SELECT p.*, pl.*, ps.id_category_default as category_default, gc.*, gl.* ' //fl.*, 
-			 . 'FROM ' . _DB_PREFIX_ . 'product p '
-			 . 'LEFT JOIN ' . _DB_PREFIX_ . 'product_lang pl ON pl.id_product = p.id_product '
-			 . 'LEFT JOIN ' . _DB_PREFIX_ . 'product_shop ps ON ps.id_product = p.id_product '
-			 . 'LEFT JOIN ' . _DB_PREFIX_ . 'category c ON c.id_category = ps.id_category_default '
-			 . 'LEFT JOIN ' . _DB_PREFIX_ . 'gshoppingflux gc ON gc.id_gcategory = c.id_category '
-			 . 'LEFT JOIN ' . _DB_PREFIX_ . 'gshoppingflux_lang gl ON gl.id_gcategory = gc.id_gcategory '
-			 . 'WHERE p.active = 1 AND c.active = 1 AND gc.export = 1 '
-			 . 'AND pl.id_lang='.$id_lang.' AND gl.id_lang='.$id_lang;
-			 
-		// Multishops filter		
-		if (Configuration::get('PS_MULTISHOP_FEATURE_ACTIVE') && count(Shop::getShops(true, null, true)) > 1) {
-            $sql .= ' AND gc.id_shop = '.$id_shop.' AND pl.id_shop = '.$id_shop.' AND ps.id_shop = '.$id_shop.' AND gl.id_shop = '.$id_shop;
-        }
-		
-		// Check EAN13
-		if ($module_conf['no_gtin']!=1)
-			$sql .= ' AND p.ean13 != "" AND p.ean13 != 0';
-		
-		// Check BRAND
-		if ($module_conf['no_brand']!=1)
-			$sql .= ' AND p.id_manufacturer != "" AND p.id_manufacturer != 0';
-		
-        $products = Db::getInstance()->ExecuteS($sql);
-		$count_products = 0;
-		$count_combinations = 0;
-		$count_attr = array();
-		
-        foreach ($products as $product)
-		{
-			$context = Context::getContext();
-			$context->language->id = $id_lang;
-			$context->shop->id = $id_shop;
-			$p = new Product($product['id_product'], true, $id_lang, $id_shop, $context);
-			$attributeCombinations = $p->getAttributeCombinations($id_lang);
-				
-			$product['gid'] = $product['id_product'];
-			if(count($attributeCombinations)>0 && $module_conf['export_attributes']==1){
-				$attr = array();	
-				$count_product_combin = (int)0;
-				foreach($attributeCombinations as $a => $attribute){
-					$attr[$attribute['id_product_attribute']][$attribute['id_attribute_group']] = $attribute;
-				}
-				foreach($attr as $id_attr => $v){
-					$count_product_combin++;	
-					foreach($v as $k => $a){
+	$products = Db::getInstance()->ExecuteS($sql);
+	$count_products = 0;
+	$count_combinations = 0;
+	$count_attr = array();
+	$module_conf['color'] = explode(";",$module_conf['color']);
+	
+	foreach ($products as $product)
+	{
+		$context = Context::getContext();
+		$context->language->id = $id_lang;
+		$context->shop->id = $id_shop;
+		$p = new Product($product['id_product'], true, $id_lang, $id_shop, $context);
+		$attributeCombinations = $p->getAttributeCombinations($id_lang);
+			
+		$product['gid'] = $product['id_product'];
+		if(count($attributeCombinations)>0 && $module_conf['export_attributes']==1){
+			$attr = array();	
+			$count_product_combin = (int)0;
+			foreach($attributeCombinations as $a => $attribute){
+				$attr[$attribute['id_product_attribute']][$attribute['id_attribute_group']] = $attribute;
+			}
+			foreach($attr as $id_attr => $v){
+				$count_product_combin++;	
+				foreach($v as $k => $a){
+					foreach($module_conf['color'] as $c){
+						if($k == $c){
+							$product['color'] = $a['attribute_name'];	
+						}
+					}
+					if(!$product['color']){
 						switch($k)
 						{
-							case $module_conf['color']:
-								$product['color'] = $a['attribute_name'];							
-								break;
-							
 							case $module_conf['material']:
 								$product['material'] = $a['attribute_name'];							
 								break;
@@ -1484,62 +1489,62 @@ class GShoppingFlux extends Module
 							case $module_conf['size']:
 								$product['size'] = $a['attribute_name'];
 								break;
-						}						
-						$product['quantity'] = $a['quantity'];
-						$product['weight'] = $a['weight'];					
-					}
-					if(	empty($product['color']) && empty($product['material']) && empty($product['pattern']) && empty($product['size']) ) 
-					{	
-						$xml_googleshopping = $this->getItemXML($product, $lang, $id_shop);
-						fwrite($googleshoppingfile, $xml_googleshopping);
-						$count_products++;
-						continue 2;
-					}
-					
-					$product['gid'] = $product['id_product'].'-'.$count_product_combin;	
-					$product['item_group_id'] = $product['reference'];
-					if ($module_conf['mpn_type']=='supplier_reference' && !empty($product['supplier_reference']))
-						$product['item_group_id'] = $product['supplier_reference'];
-					if(empty($product['item_group_id']))
-						$product['item_group_id'] = $product['id_product'];
-					$xml_googleshopping = $this->getItemXML($product, $lang, $id_shop, $id_attr);
-					fwrite($googleshoppingfile, $xml_googleshopping);
-					$product['color'] = '';
-					$product['material'] = '';
-					$product['pattern'] = '';
-					$product['size'] = '';	
-					$count_combinations++;
-					$count_attr[$product['id_product']] = 1;
-					
+						}
+					}											
+					$product['quantity'] = $a['quantity'];
+					$product['weight'] = $a['weight'];					
 				}
-						
-			} else {
-				$xml_googleshopping = $this->getItemXML($product, $lang, $id_shop);
-            	fwrite($googleshoppingfile, $xml_googleshopping);
-				$count_products++;		
+				
+				if(empty($product['color']) && empty($product['material']) && empty($product['pattern']) && empty($product['size']) ) 
+				{	
+					$xml_googleshopping = $this->getItemXML($product, $lang, $id_shop);
+					fwrite($googleshoppingfile, $xml_googleshopping);
+					$count_products++;
+					continue 2;
+				}
+				
+				$product['gid'] = $product['id_product'].'-'.$count_product_combin;	
+				$product['item_group_id'] = $product['reference'];
+				if ($module_conf['mpn_type']=='supplier_reference' && !empty($product['supplier_reference']))
+					$product['item_group_id'] = $product['supplier_reference'];
+				if(empty($product['item_group_id']))
+					$product['item_group_id'] = $product['id_product'];
+				$xml_googleshopping = $this->getItemXML($product, $lang, $id_shop, $id_attr);
+				fwrite($googleshoppingfile, $xml_googleshopping);
+				$product['color'] = '';
+				$product['material'] = '';
+				$product['pattern'] = '';
+				$product['size'] = '';	
+				$count_combinations++;
+				$count_attr[$product['id_product']] = 1;
+				
 			}
-			
-			
-			
-        }
-        
-        $xml = '</channel>'."\n".'</rss>';
-        fwrite($googleshoppingfile, $xml);
-        fclose($googleshoppingfile);
 					
-        @chmod($generate_file_path, 0777);
-        return array('nb_products' => ($count_products+count($count_attr)),'nb_combinations' => $count_combinations,'nb_prod_attr' => count($count_attr));
+		} else {
+			$xml_googleshopping = $this->getItemXML($product, $lang, $id_shop);
+	    		fwrite($googleshoppingfile, $xml_googleshopping);
+			$count_products++;		
+		}
+			
+	}
+	
+	$xml = '</channel>'."\n".'</rss>';
+	fwrite($googleshoppingfile, $xml);
+	fclose($googleshoppingfile);
+					
+	@chmod($generate_file_path, 0777);
+	return array('nb_products' => ($count_products+count($count_attr)),'nb_combinations' => $count_combinations,'nb_prod_attr' => count($count_attr));
 		
-    }
+	}
 	
 	private function getItemXML($product, $lang, $id_shop, $combination = false){
 		
 		$xml_googleshopping = '';
 		$id_lang = (int)$lang['id_lang'];
 		$title_limit       = 70;
-        $description_limit = 10000;
-        $languages     = Language::getLanguages();
-        $tailleTabLang = sizeof($languages);
+        	$description_limit = 10000;
+        	$languages     = Language::getLanguages();
+        	$tailleTabLang = sizeof($languages);
 		$context = Context::getContext();
 		$context->language->id = $id_lang;
 		$context->shop->id = $id_shop;
@@ -1562,7 +1567,7 @@ class GShoppingFlux extends Module
             $product_link = $this->context->link->getProductLink((int) ($product['id_product']), $product['link_rewrite'], $cat_link_rew, $product['ean13'], (int) ($product['id_lang']), $id_shop, 0, true);
             
             // Product name
-		$title_crop = $product['name'];
+		$title_crop = ucfirst(mb_strtolower($product['name'], self::CHARSET));
 		// Michael Hjulskov
 		//  Product color attribute, if any
 		if(!empty($product['color']))	
@@ -1595,7 +1600,7 @@ class GShoppingFlux extends Module
             }
             $xml_googleshopping .= '<item>' . "\n";
             $xml_googleshopping .= '<g:id>' . $product['gid'] . '-' . $lang['iso_code'] . '</g:id>' . "\n";
-            $xml_googleshopping .= '<title><![CDATA[' . ucfirst(mb_strtolower($title_crop, self::CHARSET)) . ']]></title>' . "\n";
+            $xml_googleshopping .= '<title><![CDATA[' . $title_crop . ']]></title>' . "\n";
             $xml_googleshopping .= '<description><![CDATA[' . $description_crop . ']]></description>' . "\n";
             $xml_googleshopping .= '<link><![CDATA[' . htmlspecialchars($product_link, self::REPLACE_FLAGS, self::CHARSET, false) . ']]></link>' . "\n";
             
