@@ -37,6 +37,7 @@ $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_dcdee1291ebf46601075e52637132
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_0b364b2afef78cfddbd3b8233d3d4b84'] = 'Caractéristique \"Genre\" des produits';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_19318a46a970d95a3c464cd4e9dc36c5'] = 'Caractéristique \"Tranche d\'âge\" des produits';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_cc70c9dcd219dc375bb6fcc01f4b11a0'] = 'Déclinaison \"Couleur\" des produits';
+$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_f2235b527368d927190a0a2adb0a74cb'] = 'Maintenez la touche [Ctrl] enfoncée pour sélectionner plusieurs attributs de couleur.';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_db6d598a6f58b7c278aa1b948743a41f'] = 'Déclinaison \"Matière\" des produits';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_1fbbf7969755f83c78e787dac5be9651'] = 'Déclinaison \"Motif\" des produits';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_b7252f98f92754cc6663a4f7c5d950bc'] = 'Attribut \"Taille\" des produits';
@@ -67,7 +68,7 @@ $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_5c4c4bd6c45620ea26e8b999474f7
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_eb73ee6694a05d7de21f152cf45fb8be'] = 'Enfants';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_5a600f5b88f416c470991c6831add13a'] = 'Adultes';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_9202eb7ae5c372a95c87b0070f493eb2'] = 'Voir les catégories Google';
-$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_7b40dcdd7ca478d5b20efadab0af6cff'] = 'Par défaut : le système cherche à utiliser l\'attribut du produit. Si non trouvé, le système cherche à utiliser l\'attribut lié à la catégorie.  Si non trouvé, le système cherche l\'attribut de la catégorie parente, et ce jusqu\'à la catégorie racine. Si aucune valeur n\'a été trouvée, l\'attribut ne sera pas exporté.';
+$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_d0e40e9c504e90bec633507b3765f00b'] = 'Par défaut : le système cherche à utiliser l\'attribut du produit. Si non trouvé, le système cherche à utiliser l\'attribut lié à la catégorie.  Si non trouvé, le système cherche l\'attribut de la catégorie parente, et ce jusqu\'à la catégorie racine. Si aucune valeur n\'a été trouvée, l\'attribut ne sera pas exporté.';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_43678833655354bd64c6bcca06100101'] = 'Mettre à jour la catégorie Google correspondante';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_496cbffd31a99a4123d72fc07a1a3d81'] = 'Ajouter une nouvelle catégorie Google';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_3adbdb3ac060038aa0e6e6c138ef9873'] = 'Catégorie';
