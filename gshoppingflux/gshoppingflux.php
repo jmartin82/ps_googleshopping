@@ -291,9 +291,9 @@ class GShoppingFlux extends Module
 			$updated &= Configuration::updateValue('GS_AGE_GROUP', Tools::getValue('age_group'), false, (int)$shop_group_id, (int)$shop_id);
 			$updated &= Configuration::updateValue('GS_ATTRIBUTES', Tools::getValue('export_attributes'), false, (int)$shop_group_id, (int)$shop_id);
 			$updated &= Configuration::updateValue('GS_COLOR', implode(';', Tools::getValue('color')), false, (int)$shop_group_id, (int)$shop_id);
-			$updated &= Configuration::updateValue('GS_MATERIAL', Tools::getValue('material'), false, (int)$shop_group_id, (int)$shop_id);
-			$updated &= Configuration::updateValue('GS_PATTERN', Tools::getValue('pattern'), false, (int)$shop_group_id, (int)$shop_id);
-			$updated &= Configuration::updateValue('GS_SIZE', Tools::getValue('size'), false, (int)$shop_group_id, (int)$shop_id);
+			$updated &= Configuration::updateValue('GS_MATERIAL', implode(';', Tools::getValue('material')), false, (int)$shop_group_id, (int)$shop_id);
+			$updated &= Configuration::updateValue('GS_PATTERN', implode(';', Tools::getValue('pattern')), false, (int)$shop_group_id, (int)$shop_id);
+			$updated &= Configuration::updateValue('GS_SIZE', implode(';', Tools::getValue('size')), false, (int)$shop_group_id, (int)$shop_id);
 			$updated &= Configuration::updateValue('GS_EXPORT_MIN_PRICE', (float)Tools::getValue('export_min_price'), false, (int)$shop_group_id, (int)$shop_id);
 			$updated &= Configuration::updateValue('GS_NO_GTIN', (bool)Tools::getValue('no_gtin'), false, (int)$shop_group_id, (int)$shop_id);
 			$updated &= Configuration::updateValue('GS_NO_BRAND', (bool)Tools::getValue('no_brand'), false, (int)$shop_group_id, (int)$shop_id);
@@ -579,36 +579,42 @@ class GShoppingFlux extends Module
 					),
 					array(
 						'type' => 'select',
+						'multiple' => true,
 						'label' => $this->l('Products material attribute'),
-						'name' => 'material',
+						'name' => 'material[]',
 						'default_value' => $helper->tpl_vars['fields_value']['material'],
 						'options' => array(
 							'query' => $attributes,
 							'id' => 'id_attribute_group',
 							'name' => 'name'
-						)
+						),
+						'desc' => $this->l('Hold [Ctrl] key pressed to select multiple material attributes.')
 					),
 					array(
 						'type' => 'select',
+						'multiple' => true,
 						'label' => $this->l('Products pattern attribute'),
-						'name' => 'pattern',
+						'name' => 'pattern[]',
 						'default_value' => $helper->tpl_vars['fields_value']['pattern'],
 						'options' => array(
 							'query' => $attributes,
 							'id' => 'id_attribute_group',
 							'name' => 'name'
-						)
+						),
+						'desc' => $this->l('Hold [Ctrl] key pressed to select multiple pattern attributes.')
 					),
 					array(
 						'type' => 'select',
+						'multiple' => true,
 						'label' => $this->l('Products size attribute'),
-						'name' => 'size',
+						'name' => 'size[]',
 						'default_value' => $helper->tpl_vars['fields_value']['size'],
 						'options' => array(
 							'query' => $attributes,
 							'id' => 'id_attribute_group',
 							'name' => 'name'
-						)
+						),
+						'desc' => $this->l('Hold [Ctrl] key pressed to select multiple size attributes.')
 					),
 					array(
 						'type' => 'switch',
@@ -822,9 +828,9 @@ class GShoppingFlux extends Module
 			'age_group' => $age_group,
 			'export_attributes' => (float)$export_attributes,
 			'color' => $color,
-			'material' => (float)$material,
-			'pattern' => (float)$pattern,
-			'size' => (float)$size,
+			'material' => $material,
+			'pattern' => $pattern,
+			'size' => $size,
 			'export_min_price' => (float)$export_min_price,
 			'no_gtin' => (int)$no_gtin,
 			'no_brand' => (int)$no_brand,
@@ -1451,6 +1457,9 @@ class GShoppingFlux extends Module
 	$count_combinations = 0;
 	$count_attr = array();
 	$module_conf['color'] = explode(";",$module_conf['color']);
+	$module_conf['material'] = explode(";",$module_conf['material']);
+	$module_conf['pattern'] = explode(";",$module_conf['pattern']);
+	$module_conf['size'] = explode(";",$module_conf['size']);
 	
 	foreach ($products as $product)
 	{
@@ -1475,20 +1484,25 @@ class GShoppingFlux extends Module
 							$product['color'] = $a['attribute_name'];	
 						}
 					}
-					if(!$product['color']){
-						switch($k)
-						{
-							case $module_conf['material']:
-								$product['material'] = $a['attribute_name'];							
-								break;
-							
-							case $module_conf['pattern']:
-								$product['pattern'] = $a['attribute_name'];							
-								break;
-							
-							case $module_conf['size']:
-								$product['size'] = $a['attribute_name'];
-								break;
+					if(empty($product['color'])){
+						foreach($module_conf['material'] as $c){
+							if($k == $c){
+								$product['material'] = $a['attribute_name'];	
+							}
+						}
+					}
+					if(empty($product['color']) && empty($product['material'])){
+						foreach($module_conf['pattern'] as $c){
+							if($k == $c){
+								$product['pattern'] = $a['attribute_name'];	
+							}
+						}
+					}
+					if(empty($product['color']) && empty($product['material']) && empty($product['pattern'])){
+						foreach($module_conf['size'] as $c){
+							if($k == $c){
+								$product['size'] = $a['attribute_name'];	
+							}
 						}
 					}											
 					$product['quantity'] = $a['quantity'];
