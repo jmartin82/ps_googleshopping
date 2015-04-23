@@ -36,11 +36,14 @@ $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_0fcf5e2a86445571fd4abefc2384d
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_dcdee1291ebf46601075e52637132fe1'] = 'Les produits à prix inférieur ne seront pas exportés. Entrez 0.00 pour désactiver ce filtre.';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_0b364b2afef78cfddbd3b8233d3d4b84'] = 'Caractéristique \"Genre\" des produits';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_19318a46a970d95a3c464cd4e9dc36c5'] = 'Caractéristique \"Tranche d\'âge\" des produits';
-$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_cc70c9dcd219dc375bb6fcc01f4b11a0'] = 'Déclinaison \"Couleur\" des produits';
+$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_cc70c9dcd219dc375bb6fcc01f4b11a0'] = 'Attribut \"Couleur\" des produits';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_f2235b527368d927190a0a2adb0a74cb'] = 'Maintenez la touche [Ctrl] enfoncée pour sélectionner plusieurs attributs de couleur.';
-$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_db6d598a6f58b7c278aa1b948743a41f'] = 'Déclinaison \"Matière\" des produits';
-$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_1fbbf7969755f83c78e787dac5be9651'] = 'Déclinaison \"Motif\" des produits';
+$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_db6d598a6f58b7c278aa1b948743a41f'] = 'Attribut \"Matière\" des produits';
+$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_d9723dcdf4cbc5834a627bb76b4bf17b'] = 'Maintenez la touche [Ctrl] enfoncée pour sélectionner plusieurs attributs de matière.';
+$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_1fbbf7969755f83c78e787dac5be9651'] = 'Attribut \"Motif\" des produits';
+$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_d423f786d745bab1de04b323ab2113ca'] = 'Maintenez la touche [Ctrl] enfoncée pour sélectionner plusieurs attributs de motifs.';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_b7252f98f92754cc6663a4f7c5d950bc'] = 'Attribut \"Taille\" des produits';
+$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_c9d435f8fc5c86be5c6eec31e95719e7'] = 'Maintenez la touche [Ctrl] enfoncée pour sélectionner plusieurs attributs de taille.';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_0990aa08cf65d3dd19015184a76a49f9'] = 'Exporter les déclinaisons de produits';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_00d23a76e43b46dae9ec7aa9dcbebb32'] = 'Activé';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_b9f5c797ebbf55adccdd8539a65a0241'] = 'Désactivé';
