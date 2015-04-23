@@ -452,6 +452,9 @@ class GShoppingFlux extends Module
 			'id_language' => $this->context->language->id
 		);
 		$helper->tpl_vars['fields_value']['color[]'] = explode(';', $helper->tpl_vars['fields_value']['color']);
+		$helper->tpl_vars['fields_value']['material[]'] = explode(';', $helper->tpl_vars['fields_value']['material']);
+		$helper->tpl_vars['fields_value']['pattern[]'] = explode(';', $helper->tpl_vars['fields_value']['pattern']);
+		$helper->tpl_vars['fields_value']['size[]'] = explode(';', $helper->tpl_vars['fields_value']['size']);
 		$shops = Shop::getShops(true, null, true);
 		$context = Context::getContext();
 		$id_lang = $context->language->id;
