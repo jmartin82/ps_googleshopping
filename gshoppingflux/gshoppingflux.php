@@ -1700,9 +1700,9 @@ class GShoppingFlux extends Module
 		$xml_googleshopping = '';
 		$id_lang = (int)$lang['id_lang'];
 		$title_limit       = 70;
-	        $description_limit = 10000;
-	        $languages     = Language::getLanguages();
-	        $tailleTabLang = sizeof($languages);
+        $description_limit = 10000;
+        $languages     = Language::getLanguages();
+        $tailleTabLang = sizeof($languages);
 		$context = Context::getContext();
 		$context->language->id = $id_lang;
 		$context->shop->id = $id_shop;
@@ -1726,9 +1726,9 @@ class GShoppingFlux extends Module
 						
 		$cat_link_rew = Category::getLinkRewrite($product['id_gcategory'], intval($lang));
 		
-		$product_link = $this->context->link->getProductLink((int) ($product['id_product']), $product['link_rewrite'], $cat_link_rew, $product['ean13'], (int) ($product['id_lang']), $id_shop, 0, true);
+		$product_link = $this->context->link->getProductLink((int) ($product['id_product']), $product['link_rewrite'], $cat_link_rew, $product['ean13'], (int) ($product['id_lang']), $id_shop, $combination, true);
             
-        	// Product name
+        // Product name
 		$title_crop = ucfirst(mb_strtolower($product['name'], self::CHARSET));
 		// Michael Hjulskov
 		//  Product color attribute, if any
