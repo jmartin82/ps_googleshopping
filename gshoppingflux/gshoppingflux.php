@@ -1815,7 +1815,7 @@ class GShoppingFlux extends Module
 		if (empty($this->categories_values[$product['category_default']]['gcat_avail'])) {
 			if ($this->module_conf['quantity'] == 1)
 				$xml_googleshopping .= '<g:quantity>'.$product['quantity'].'</g:quantity>'."\n";
-			if ($product['quantity'] > 0) {
+			if ($product['quantity'] > 0 && $product['available_for_order']) {
 				$xml_googleshopping .= '<g:availability>in stock</g:availability>' . "\n";
 			} else {
 				$xml_googleshopping .= '<g:availability>out of stock</g:availability>' . "\n";
