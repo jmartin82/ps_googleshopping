@@ -32,7 +32,7 @@ class GShoppingFlux extends Module
         $this->name    = 'gshoppingflux';
         $this->tab     = 'smart_shopping';
         $this->version = '1.5.6';
-        $this->author  = 'DiMooz';
+        $this->author  = 'Dim00z';
         
 		$this->bootstrap = true;
         parent::__construct();
@@ -59,7 +59,8 @@ class GShoppingFlux extends Module
             return false;
         }
 				
-		$shops = Shop::getShops(true, null, true);	
+		$shops = Shop::getShops(true, null, true);
+		$id_lang = (int)Context::getContext()->language->id;
 				
 		foreach ($shops as $shop_id)
 		{
@@ -68,11 +69,12 @@ class GShoppingFlux extends Module
 			if (!$this->initDb((int)$shop_id))return false;
 		
 			if ($delete_params)
-				if (!Configuration::updateValue('GS_DESCRIPTION', 'short', false, (int)$shop_group_id, (int)$shop_id)
+				if (!Configuration::updateValue('GS_PRODUCT_TYPE', '', true, (int)$shop_group_id, (int)$shop_id)
+				 || !Configuration::updateValue('GS_DESCRIPTION', 'short', false, (int)$shop_group_id, (int)$shop_id)
 				 || !Configuration::updateValue('GS_SHIPPING_PRICE', '0.00', false, (int)$shop_group_id, (int)$shop_id)
 				 || !Configuration::updateValue('GS_SHIPPING_COUNTRY', 'EN', false, (int)$shop_group_id, (int)$shop_id)
 				 || !Configuration::updateValue('GS_IMG_TYPE', 'large_default', false, (int)$shop_group_id, (int)$shop_id)
-				 || !Configuration::updateValue('GS_MPN_TYPE', 'supplier_reference', false, (int)$shop_group_id, (int)$shop_id)
+				 || !Configuration::updateValue('GS_MPN_TYPE', 'reference', false, (int)$shop_group_id, (int)$shop_id)
 				 || !Configuration::updateValue('GS_GENDER', '', false, (int)$shop_group_id, (int)$shop_id)
 				 || !Configuration::updateValue('GS_AGE_GROUP', '', false, (int)$shop_group_id, (int)$shop_id)
 				 || !Configuration::updateValue('GS_ATTRIBUTES', '', false, (int)$shop_group_id, (int)$shop_id)
@@ -112,6 +114,10 @@ class GShoppingFlux extends Module
 			`availability` VARCHAR( 12 ) NOT NULL,
 			`gender` VARCHAR( 8 ) NOT NULL,
 			`age_group` VARCHAR( 8 ) NOT NULL,
+			`color` VARCHAR( 64 ) NOT NULL,
+			`material` VARCHAR( 64 ) NOT NULL,
+			`pattern` VARCHAR( 64 ) NOT NULL,
+			`size` VARCHAR( 64 ) NOT NULL,
 			`id_shop` INT(11) UNSIGNED NOT NULL,
 			INDEX (`id_shop`)
 		) ENGINE = '._MYSQL_ENGINE_.' CHARACTER SET utf8 COLLATE utf8_general_ci;') &&
@@ -147,7 +153,11 @@ class GShoppingFlux extends Module
 			$condition = '';				
 			$availability = '';				
 			$gender = '';
-			$age_group = '';					
+			$age_group = '';
+			$color = '';
+			$material = '';
+			$pattern = '';
+			$size = '';
 			
 			if(!count(GCategories::get($cat['id_category'],$id_lang,$id_shop)) && ($cat['id_category']>0) ){
 				if($root->id_category == $cat['id_category'])
@@ -155,9 +165,9 @@ class GShoppingFlux extends Module
 					foreach($languages as $key => $lang)
 						$str[$lang['id_lang']] = $this->l('Google Category Example > Google Sub-Category Example');
 					$condition = 'new';				
-					$availability = 'in stock';	
+					$availability = 'in_stock';	
 				}
-				GCategories::add($cat['id_category'], $str, $cat['active'], $condition, $availability, $gender, $age_group, $id_shop);					
+				GCategories::add($cat['id_category'], $str, $cat['active'], $condition, $availability, $gender, $age_group, $color, $material, $pattern, $size, $id_shop);					
 			}
 		}
 		return true;
@@ -170,6 +180,7 @@ class GShoppingFlux extends Module
 
 		if ($delete_params)
 			if (!$this->uninstallDB() 
+			 || !Configuration::deleteByName('GS_PRODUCT_TYPE')
 			 || !Configuration::deleteByName('GS_DESCRIPTION')
 			 || !Configuration::deleteByName('GS_SHIPPING_PRICE')
 			 || !Configuration::deleteByName('GS_SHIPPING_COUNTRY')
@@ -276,12 +287,16 @@ class GShoppingFlux extends Module
 
 		if (Shop::isFeatureActive())
 			$this->_html .= $this->getCurrentShopInfoMsg();
-
+		
 		if (Tools::isSubmit('submitFluxOptions'))
 		{
 			$errors_update_shops = array();
 			$updated = true;
-
+			$product_type_lang = Tools::getValue('product_type');
+			foreach($languages as $k => $lang)
+				$product_type[$lang['id_lang']] = $product_type_lang[$k];
+			
+			$updated &= Configuration::updateValue('GS_PRODUCT_TYPE', $product_type, false, (int)$shop_group_id, (int)$shop_id);
 			$updated &= Configuration::updateValue('GS_DESCRIPTION', Tools::getValue('description'), false, (int)$shop_group_id, (int)$shop_id);
 			$updated &= Configuration::updateValue('GS_SHIPPING_PRICE', (float)Tools::getValue('shipping_price'), false, (int)$shop_group_id, (int)$shop_id);
 			$updated &= Configuration::updateValue('GS_SHIPPING_COUNTRY', Tools::getValue('shipping_country'), false, (int)$shop_group_id, (int)$shop_id);
@@ -322,11 +337,14 @@ class GShoppingFlux extends Module
 					} else {
 						$get_file_url = $this->uri . 'modules/' . $this->getName() . '/file_exports/'. $this->_getOutputFileName($lang['iso_code'], $shop_id);
 					}
-					$confirm .= '<br /> <a href="'.$get_file_url.'" target="_blank">'.$get_file_url . '</a> : '.$count[$i]['nb_products'].' '.$this->l('products exported');
+					$confirm .= '<br /> <a href="'.$get_file_url.'" target="_blank">'.$get_file_url . '</a> : '.($count[$i]['nb_products']-$count[$i]['nb_combinations']).' '.$this->l('products exported');
 					if($count[$i]['nb_combinations']>0){
-						$confirm .= ': '.$count[$i]['nb_prod_attr'].' '.$this->l('products with attributes');
+						$confirm .= ': '.$count[$i]['nb_prod_w_attr'].' '.$this->l('products with attributes');
 						$confirm .= ', '.$count[$i]['nb_combinations'].' '.$this->l('attributes combinations');						
-						$confirm .= '.<br/> '.$this->l('Total exported items').': '.($count[$i]['nb_combinations']-$count[$i]['nb_prod_attr']+$count[$i]['nb_products']);
+						$confirm .= '.<br/> '.$this->l('Total').': '.($count[$i]['nb_products']).' '.$this->l('exported products');
+						if($count[$i]['non_exported_products']>0)$confirm .= ', '.$this->l('and').' '.$count[$i]['non_exported_products'].' '.$this->l('not-exported products (non-available)');
+						$confirm .= '.';				
+						
 					}
 					else $confirm .= '.';
 				}
@@ -344,6 +362,10 @@ class GShoppingFlux extends Module
 			$availability = Tools::getValue('availability');
 			$gender = Tools::getValue('gender');
 			$age_group = Tools::getValue('age_group');
+			$color = implode(";", Tools::getValue('color'));
+			$material = implode(";", Tools::getValue('material'));
+			$pattern = implode(";", Tools::getValue('pattern'));
+			$size = implode(";", Tools::getValue('size'));
 			$id_shop = (int)Shop::getContextShopID();
 			 
 			if (Tools::isSubmit('updatecateg'))
@@ -355,7 +377,7 @@ class GShoppingFlux extends Module
 					$gcateg[$lang['id_lang']] = Tools::getValue('gcategory_'.(int)$lang['id_lang']);
 				}
 
-				GCategories::update($id_gcategory, $gcateg, $export, $condition, $availability, $gender, $age_group, $id_shop);
+				GCategories::update($id_gcategory, $gcateg, $export, $condition, $availability, $gender, $age_group, $color, $material, $pattern, $size, $id_shop);
 				$this->_html .= $this->displayConfirmation($this->l('Google category has been updated.'));
 			}
 		}
@@ -451,10 +473,6 @@ class GShoppingFlux extends Module
 			'languages' => $this->context->controller->getLanguages(),
 			'id_language' => $this->context->language->id
 		);
-		$helper->tpl_vars['fields_value']['color[]'] = explode(';', $helper->tpl_vars['fields_value']['color']);
-		$helper->tpl_vars['fields_value']['material[]'] = explode(';', $helper->tpl_vars['fields_value']['material']);
-		$helper->tpl_vars['fields_value']['pattern[]'] = explode(';', $helper->tpl_vars['fields_value']['pattern']);
-		$helper->tpl_vars['fields_value']['size[]'] = explode(';', $helper->tpl_vars['fields_value']['size']);
 		$shops = Shop::getShops(true, null, true);
 		$context = Context::getContext();
 		$id_lang = $context->language->id;
@@ -465,10 +483,6 @@ class GShoppingFlux extends Module
 						array('id_feature'=>'','name'=>$this->l('Product feature doesn\'t exist'))
 					  );
 		$features = array_merge($features, $this->getShopFeatures($id_lang, $id_shop));
-		$attributes = array(
-						array('id_attribute_group'=>'','name'=>$this->l('Product attribute doesn\'t exist'))
-					  );
-		$attributes = array_merge($attributes, $this->getShopAttributes($id_lang, $id_shop));	
 		$descriptions = array(
 						array('id_desc'=>'short','name'=>$this->l('Short description')),
 						array('id_desc'=>'long','name'=>$this->l('Long description')),
@@ -486,7 +500,15 @@ class GShoppingFlux extends Module
 					'title' => $this->l('Parameters'),
 					'icon' => 'icon-cogs'
 				),
-				'input' => array(
+				'input' => array(					
+					array(
+						'type' => 'text',
+						'label' => $this->l('Default product type'),
+						'name' => 'product_type[]',
+						//'class' => 'fixed-width-xl',
+						'lang' => true,
+						'desc' => $this->l('Default product type from your shop.'),  
+					),
 					array(
 						'type' => 'select',
 						'label' => $this->l('Description type'),
@@ -570,54 +592,54 @@ class GShoppingFlux extends Module
 					array(
 						'type' => 'select',
 						'multiple' => true,
-						'label' => $this->l('Products color attribute'),
+						'label' => $this->l('Products color feature'),
 						'name' => 'color[]',
 						'default_value' => $helper->tpl_vars['fields_value']['color'],
 						'options' => array(
-							'query' => $attributes,
-							'id' => 'id_attribute_group',
+							'query' => $features,
+							'id' => 'id_feature',
 							'name' => 'name'
 						),
-						'desc' => $this->l('Hold [Ctrl] key pressed to select multiple color attributes.')
+						'desc' => $this->l('Hold [Ctrl] key pressed to select multiple color features.')
 					),
 					array(
 						'type' => 'select',
 						'multiple' => true,
-						'label' => $this->l('Products material attribute'),
+						'label' => $this->l('Products material feature'),
 						'name' => 'material[]',
 						'default_value' => $helper->tpl_vars['fields_value']['material'],
 						'options' => array(
-							'query' => $attributes,
-							'id' => 'id_attribute_group',
+							'query' => $features,
+							'id' => 'id_feature',
 							'name' => 'name'
 						),
-						'desc' => $this->l('Hold [Ctrl] key pressed to select multiple material attributes.')
+						'desc' => $this->l('Hold [Ctrl] key pressed to select multiple material features.')
 					),
 					array(
 						'type' => 'select',
 						'multiple' => true,
-						'label' => $this->l('Products pattern attribute'),
+						'label' => $this->l('Products pattern feature'),
 						'name' => 'pattern[]',
 						'default_value' => $helper->tpl_vars['fields_value']['pattern'],
 						'options' => array(
-							'query' => $attributes,
-							'id' => 'id_attribute_group',
+							'query' => $features,
+							'id' => 'id_feature',
 							'name' => 'name'
 						),
-						'desc' => $this->l('Hold [Ctrl] key pressed to select multiple pattern attributes.')
+						'desc' => $this->l('Hold [Ctrl] key pressed to select multiple pattern features.')
 					),
 					array(
 						'type' => 'select',
 						'multiple' => true,
-						'label' => $this->l('Products size attribute'),
+						'label' => $this->l('Products size feature'),
 						'name' => 'size[]',
 						'default_value' => $helper->tpl_vars['fields_value']['size'],
 						'options' => array(
-							'query' => $attributes,
-							'id' => 'id_attribute_group',
+							'query' => $features,
+							'id' => 'id_feature',
 							'name' => 'name'
 						),
-						'desc' => $this->l('Hold [Ctrl] key pressed to select multiple size attributes.')
+						'desc' => $this->l('Hold [Ctrl] key pressed to select multiple size features.')
 					),
 					array(
 						'type' => 'switch',
@@ -636,7 +658,7 @@ class GShoppingFlux extends Module
 								'label' => $this->l('Disabled')
 							)
 						),
-						'desc' => $this->l('If checked, one product is exported for each attributes combination. Products should have at least one of the previous attributes filled in order to be exported as combinations.')
+						'desc' => $this->l('If checked, one product is exported for each attributes combination. Products should have at least one attribute filled in order to be exported as combinations.')
 					),
 					array(
 						'type' => 'switch',
@@ -779,6 +801,7 @@ class GShoppingFlux extends Module
 	public function getConfigFieldsValues($shop_id)
 	{
 		$shop_group_id = Shop::getGroupFromShop($shop_id);
+		$product_type = array();
 		$description = 'short';
 		$shipping_price = 0;
 		$shipping_country = 'EN';
@@ -787,10 +810,10 @@ class GShoppingFlux extends Module
 		$gender = '';
 		$age_group = '';
 		$export_attributes = '';
-		$color = '';
-		$material = '';
-		$pattern = '';
-		$size = '';
+		$color = array();
+		$material = array();
+		$pattern = array();
+		$size = array();
 		$export_min_price = 0;
 		$no_gtin = true;
 		$no_brand = true;
@@ -800,6 +823,8 @@ class GShoppingFlux extends Module
 		$featured_products = true;
 		$gen_file_in_root = true;
 
+		foreach (Language::getLanguages(false) as $lang)
+			$product_type[$lang['id_lang']] = Configuration::get('GS_PRODUCT_TYPE', $lang['id_lang'], $shop_group_id, $shop_id);
 		$description = Configuration::get('GS_DESCRIPTION', 0, $shop_group_id, $shop_id);
 		$shipping_price = (float)Configuration::get('GS_SHIPPING_PRICE', 0, $shop_group_id, $shop_id);
 		$shipping_country = Configuration::get('GS_SHIPPING_COUNTRY', 0, $shop_group_id, $shop_id);
@@ -808,10 +833,10 @@ class GShoppingFlux extends Module
 		$gender = Configuration::get('GS_GENDER', 0, $shop_group_id, $shop_id);
 		$age_group = Configuration::get('GS_AGE_GROUP', 0, $shop_group_id, $shop_id);
 		$export_attributes = Configuration::get('GS_ATTRIBUTES', 0, $shop_group_id, $shop_id);
-		$color = Configuration::get('GS_COLOR', 0, $shop_group_id, $shop_id);
-		$material = Configuration::get('GS_MATERIAL', 0, $shop_group_id, $shop_id);
-		$pattern = Configuration::get('GS_PATTERN', 0, $shop_group_id, $shop_id);
-		$size = Configuration::get('GS_SIZE', 0, $shop_group_id, $shop_id);
+		$color = explode(";", Configuration::get('GS_COLOR', 0, $shop_group_id, $shop_id));
+		$material = explode(";", Configuration::get('GS_MATERIAL', 0, $shop_group_id, $shop_id));
+		$pattern = explode(";", Configuration::get('GS_PATTERN', 0, $shop_group_id, $shop_id));
+		$size = explode(";", Configuration::get('GS_SIZE', 0, $shop_group_id, $shop_id));
 		$export_min_price = (float)Configuration::get('GS_EXPORT_MIN_PRICE', 0, $shop_group_id, $shop_id);
 		$no_gtin &= (bool)Configuration::get('GS_NO_GTIN', 0, $shop_group_id, $shop_id);
 		$no_brand &= (bool)Configuration::get('GS_NO_BRAND', 0, $shop_group_id, $shop_id);
@@ -822,6 +847,7 @@ class GShoppingFlux extends Module
 		$gen_file_in_root &= (bool)Configuration::get('GS_GEN_FILE_IN_ROOT', 0, $shop_group_id, $shop_id);
 		
 		return array(
+			'product_type[]' => $product_type,
 			'description' => $description,
 			'shipping_price' => (float)$shipping_price,
 			'shipping_country' => $shipping_country,
@@ -830,10 +856,10 @@ class GShoppingFlux extends Module
 			'gender' => $gender,
 			'age_group' => $age_group,
 			'export_attributes' => (float)$export_attributes,
-			'color' => $color,
-			'material' => $material,
-			'pattern' => $pattern,
-			'size' => $size,
+			'color[]' => $color,
+			'material[]' => $material,
+			'pattern[]' => $pattern,
+			'size[]' => $size,
 			'export_min_price' => (float)$export_min_price,
 			'no_gtin' => (int)$no_gtin,
 			'no_brand' => (int)$no_brand,
@@ -854,12 +880,14 @@ class GShoppingFlux extends Module
 		$helper->default_form_language = (int)$this->context->language->id;
 		$helper->allow_employee_form_lang = Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG') ? Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG') : 0;
 		$this->fields_form = array();		
-		$helper->fields_value = $this->getGCategFieldsValues();
+		$helper->fields_value = $this->getGCategFieldsValues();	
 		$helper->identifier = $this->identifier;
 		$helper->currentIndex = $this->context->link->getAdminLink('AdminModules', false).'&configure='.$this->name.'&tab_module='.$this->tab.'&module_name='.$this->name;
 		$helper->token = Tools::getAdminTokenLite('AdminModules');	
 		
 		$context = Context::getContext();
+		$id_lang = $context->language->id;
+		$id_shop = $context->shop->id;
 		
 		$conditions	 = array(
 					array('id_cond'=>'','name'=>$this->l('Default')),
@@ -869,7 +897,7 @@ class GShoppingFlux extends Module
 				  );	
 		$avail_modes = array(
 					array('id_mode'=>'','name'=>$this->l('Default')),
-					array('id_mode'=>'in stock','name'=>$this->l('Category\'s products are in stock')),
+					array('id_mode'=>'in_stock','name'=>$this->l('Category\'s products are in stock')),
 					array('id_mode'=>'preorder','name'=>$this->l('Category\'s products avail. on preorder'))
 				  );
 		$gender_modes = array(
@@ -886,6 +914,10 @@ class GShoppingFlux extends Module
 					array('id'=>'kids','name'=>$this->l('Kids')),
 					array('id'=>'adult','name'=>$this->l('Adult'))
 				  );
+		$attributes = array(
+						array('id_attribute_group'=>'','name'=>$this->l('Products attribute doesn\'t exist'))
+				  );
+		$attributes = array_merge($attributes, $this->getShopAttributes($id_lang, $id_shop));
 				  
 		$gcat_desc = '<a href="http://www.google.com/support/merchants/bin/answer.py?answer=160081&query=product_type" target="_blank">' . $this->l('See Google Categories') . '</a> ';
 		
@@ -968,7 +1000,59 @@ class GShoppingFlux extends Module
 							'id' => 'id',
 							'name' => 'name'
 						)
-					)
+					),
+					array(
+						'type' => 'select',
+						'multiple' => true,
+						'label' => $this->l('Products color attribute'),
+						'name' => 'color[]',
+						'default_value' => $helper->fields_value['color'],
+						'options' => array(
+							'query' => $attributes,
+							'id' => 'id_attribute_group',
+							'name' => 'name'
+						),
+						'desc' => $this->l('Hold [Ctrl] key pressed to select multiple color attributes.')
+					),
+					array(
+						'type' => 'select',
+						'multiple' => true,
+						'label' => $this->l('Products material attribute'),
+						'name' => 'material[]',
+						'default_value' => $helper->fields_value['material'],
+						'options' => array(
+							'query' => $attributes,
+							'id' => 'id_attribute_group',
+							'name' => 'name'
+						),
+						'desc' => $this->l('Hold [Ctrl] key pressed to select multiple material attributes.')
+					),
+					array(
+						'type' => 'select',
+						'multiple' => true,
+						'label' => $this->l('Products pattern attribute'),
+						'name' => 'pattern[]',
+						'default_value' => $helper->fields_value['pattern'],
+						'options' => array(
+							'query' => $attributes,
+							'id' => 'id_attribute_group',
+							'name' => 'name'
+						),
+						'desc' => $this->l('Hold [Ctrl] key pressed to select multiple pattern attributes.')
+					),
+					array(
+						'type' => 'select',
+						'multiple' => true,
+						'label' => $this->l('Products size attribute'),
+						'name' => 'size[]',
+						'default_value' => $helper->fields_value['size'],
+						'options' => array(
+							'query' => $attributes,
+							'id' => 'id_attribute_group',
+							'name' => 'name'
+						),
+						'desc' => $this->l('Hold [Ctrl] key pressed to select multiple size attributes.')
+					)				
 				),
 				'description' => $form_desc,
 				'submit' => array(
@@ -1002,6 +1086,10 @@ class GShoppingFlux extends Module
 		$gcatavail_edit = '';
 		$gcatgender_edit = '';
 		$gcatage_edit = '';
+		$gcatcolor_edit = '';
+		$gcatmaterial_edit = '';
+		$gcatpattern_edit = '';
+		$gcatsize_edit = '';
 		$gcategory_edit = '';
 		$gcatlabel_edit = '';
 
@@ -1017,6 +1105,10 @@ class GShoppingFlux extends Module
 			$gcatavail_edit = $gcateg['availability'];
 			$gcatgender_edit = $gcateg['gender'];
 			$gcatage_edit = $gcateg['age_group'];
+			$gcatcolor_edit = $gcateg['color'];
+			$gcatmaterial_edit = $gcateg['material'];
+			$gcatpattern_edit = $gcateg['pattern'];
+			$gcatsize_edit = $gcateg['size'];
 			$gcategory_edit = $gcateg['gcategory'];
 			$gcatlabel_edit = $gcateg['breadcrumb'];
 			
@@ -1030,6 +1122,10 @@ class GShoppingFlux extends Module
 			'availability' => Tools::getValue('availability', isset($gcatavail_edit) ? $gcatavail_edit : ''),
 			'gender' => Tools::getValue('gender', isset($gcatgender_edit) ? $gcatgender_edit : ''),
 			'age_group' => Tools::getValue('age_group', isset($gcatage_edit) ? $gcatage_edit : ''),
+			'color[]' => explode(';', Tools::getValue('color', isset($gcatcolor_edit) ? $gcatcolor_edit : '')),
+			'material[]' => explode(';', Tools::getValue('material', isset($gcatmaterial_edit) ? $gcatmaterial_edit : '')),
+			'pattern[]' => explode(';', Tools::getValue('pattern', isset($gcatpattern_edit) ? $gcatpattern_edit : '')),
+			'size[]' => explode(';', Tools::getValue('size', isset($gcatsize_edit) ? $gcatsize_edit : '')),
 				
 		);
 		
@@ -1089,6 +1185,18 @@ class GShoppingFlux extends Module
 				),
 				'age_group' => array(
 					'title' => $this->l('Age'),
+				),
+				'gid_colors' => array(
+					'title' => $this->l('Color'),
+				),
+				'gid_materials' => array(
+					'title' => $this->l('Material'),
+				),
+				'gid_patterns' => array(
+					'title' => $this->l('Pattern'),
+				),
+				'gid_sizes' => array(
+					'title' => $this->l('Size'),
 				),
 				'export' => array(
 					'title' => $this->l('Export'),
@@ -1217,17 +1325,44 @@ class GShoppingFlux extends Module
 				'.($sql_limit != '' ? $sql_limit : '')
 			);
 			
-			foreach($result as $k => $v){
+			$context = Context::getContext();
+			$id_lang = $context->language->id;
+			$id_shop = $context->shop->id;
+			$attributes = $this->getShopAttributes($id_lang, $id_shop);	 
+			
+			foreach($result as $k => $cat){
 				$result[$k]['gcategory'] = html_entity_decode($result[$k]['gcategory']);
+				$gid_colors = array();$gid_materials = array();$gid_patterns = array();$gid_sizes= array();
 				if($result[$k]['level_depth']>0){
 					$tree = " > "; $str='';
 					for($i=0;$i<$result[$k]['level_depth']-1;$i++){
 						$str .= $tree;
 					}
 					$result[$k]['gcat_name'] = $str.' '.$result[$k]['gcat_name'];
+					$result[$k]['color'] = explode(";",$result[$k]['color']);
+					foreach($result[$k]['color'] as $a => $v){
+						$gid_colors[] = $attributes[$v-1]['name'];				
+					}
+					$result[$k]['material'] = explode(";",$result[$k]['material']);
+					foreach($result[$k]['material'] as $a => $v){
+						$gid_materials[] = $attributes[$v-1]['name'];				
+					}
+					$result[$k]['pattern'] = explode(";",$result[$k]['pattern']);
+					foreach($result[$k]['pattern'] as $a => $v){
+						$gid_patterns[] = $attributes[$v-1]['name'];				
+					}
+					$result[$k]['size'] = explode(";",$result[$k]['size']);
+					foreach($result[$k]['size'] as $a => $v){
+						$gid_sizes[] = $attributes[$v-1]['name'];				
+					}
+					$result[$k]['gid_colors'] = implode(" ; ", $gid_colors);
+					$result[$k]['gid_materials'] = implode(" ; ", $gid_materials);
+					$result[$k]['gid_patterns'] = implode(" ; ", $gid_patterns);
+					$result[$k]['gid_sizes'] = implode(" ; ", $gid_sizes);
 				}
+				
 			}
-
+			
 			$categories = array();
 			$buff = array();
 
@@ -1300,8 +1435,12 @@ class GShoppingFlux extends Module
 			$availability = $cat['availability'];
 			$gender = $cat['gender'];
 			$age_group = $cat['age_group'];
+			$color = $cat['color'];
+			$material = $cat['material'];
+			$pattern = $cat['pattern'];
+			$size = $cat['size'];
 					
-			while( (empty($gcategory) || empty($condition) || empty($availability) || empty($gender) || empty($age_group)) && $parent_id>=$root->id_category )
+			while( (empty($gcategory) || empty($condition) || empty($availability) || empty($gender) || empty($age_group) || empty($color) || empty($material) || empty($pattern) || empty($size)) && $parent_id>=$root->id_category )
 			{				
 				$parentsql = $sql . ' AND k.id_category = '.$parent_id.';';						
 				$parentret = Db::getInstance()->executeS($parentsql);
@@ -1313,14 +1452,32 @@ class GShoppingFlux extends Module
 					if(empty($condition))$condition = $parentcat['condition'];
 					if(empty($availability))$availability = $parentcat['availability'];
 					if(empty($gender))$gender = $parentcat['gender'];
-					if(empty($age_group))$age_group = $parentcat['age_group'];				
+					if(empty($age_group))$age_group = $parentcat['age_group'];
+					if(empty($color))$color = $parentcat['color'];
+					if(empty($material))$material = $parentcat['material'];
+					if(empty($pattern))$pattern = $parentcat['pattern'];
+					if(empty($size))$size = $parentcat['size'];
 				}
 			}
+			
+			if(!$color && !empty($this->module_conf['color']))
+				$color = $this->module_conf['color'];
+			if(!$material && !$this->module_conf['material'])
+				$material =  $this->module_conf['material'];
+			if(!$pattern && !empty($this->module_conf['pattern']))
+				$pattern = $this->module_conf['pattern'];
+			if(!$size && !$this->module_conf['size'])
+				$size =  $this->module_conf['size'];
+			
 			$this->categories_values[$cat['id_category']]['gcategory'] = html_entity_decode($gcategory);
 			$this->categories_values[$cat['id_category']]['gcat_condition'] = $condition;
 			$this->categories_values[$cat['id_category']]['gcat_avail'] = $availability;
 			$this->categories_values[$cat['id_category']]['gcat_gender'] = $gender;
 			$this->categories_values[$cat['id_category']]['gcat_age_group'] = $age_group;
+			$this->categories_values[$cat['id_category']]['gcat_color[]'] = explode(";",$color);
+			$this->categories_values[$cat['id_category']]['gcat_material[]'] = explode(";",$material);
+			$this->categories_values[$cat['id_category']]['gcat_pattern[]'] = explode(";",$pattern);
+			$this->categories_values[$cat['id_category']]['gcat_size[]'] = explode(";",$size);
 			
 		}
 		
@@ -1387,203 +1544,191 @@ class GShoppingFlux extends Module
     }
     
     private function generateFile($lang, $id_shop)
-	{		
-	$id_lang = (int)$lang['id_lang'];	
-	$this->shop = new Shop($id_shop);
-	$root = Category::getRootCategory($id_lang, $this->shop);
-	$this->id_root = $root->id_category;
-	
-	// Get module configuration for this shop
-	$module_conf = $this->getConfigFieldsValues($id_shop);
-	
-	// Init categories special attributes : Google's matching category, gender, age_group...
-	$this->getGCategValues($id_lang, $id_shop);
-	
-	// Init file_path value
-	if ($module_conf['gen_file_in_root']) {
-	    $generate_file_path = dirname(__FILE__) .'/../../'. $this->_getOutputFileName($lang['iso_code'], $id_shop);
-	} else {
-	    $generate_file_path = dirname(__FILE__) . '/file_exports/'. $this->_getOutputFileName($lang['iso_code'], $id_shop);
-	}
-	
-	$meta = Meta::getMetaByPage('index', $id_lang);
-	// Google Shopping XML
-	$xml = '<?xml version="1.0" encoding="'.self::CHARSET.'" ?>' . "\n";
-	$xml .= '<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">' . "\n\n";
-	$xml .= '<channel>' . "\n";		
-	// Shop name
-	$xml .= '<title><![CDATA['.$this->shop->name.']]></title>' . "\n";		
-	// Shop description
-	$xml .= '<description><![CDATA['.$this->getShopDescription($id_lang, $id_shop).']]></description>' . "\n";
-	$xml .= '<link href="' . htmlspecialchars($this->uri, self::REPLACE_FLAGS, self::CHARSET, false) . '" rel="alternate" type="text/html"/>' . "\n";
-	$xml .= '<image>' . "\n";
-	$xml .= '<title><![CDATA[' . Configuration::get('PS_SHOP_NAME') . ']]></title>' . "\n";
-	$xml .= '<url>' . htmlspecialchars($this->uri, self::REPLACE_FLAGS, self::CHARSET, false) . 'img/logo.jpg</url>' . "\n";
-	$xml .= '<link>' . htmlspecialchars($this->uri, self::REPLACE_FLAGS, self::CHARSET, false) . '</link>' . "\n";
-	$xml .= '</image>' . "\n";
-	$xml .= '<modified>' . date('Y-m-d') . 'T01:01:01Z</modified>' . "\n";
-	$xml .= '<author>'."\n".'<name>' . htmlspecialchars(Configuration::get('PS_SHOP_NAME'), self::REPLACE_FLAGS, self::CHARSET, false)  . '</name>'."\n".'</author>' . "\n\n";
-	
-	$googleshoppingfile = fopen($generate_file_path, 'w');
-	
-	// Add UTF-8 byte order mark
-	fwrite($googleshoppingfile, pack("CCC", 0xef, 0xbb, 0xbf));
-	
-	// File header 
-	fwrite($googleshoppingfile, $xml);
+    {		
+		$id_lang = (int)$lang['id_lang'];	
+		$this->shop = new Shop($id_shop);
+		$root = Category::getRootCategory($id_lang, $this->shop);
+		$this->id_root = $root->id_category;
 		
-	$sql = 'SELECT p.*, pl.*, ps.id_category_default as category_default, gc.*, gl.* ' //fl.*, 
-		 . 'FROM ' . _DB_PREFIX_ . 'product p '
-		 . 'LEFT JOIN ' . _DB_PREFIX_ . 'product_lang pl ON pl.id_product = p.id_product '
-		 . 'LEFT JOIN ' . _DB_PREFIX_ . 'product_shop ps ON ps.id_product = p.id_product '
-		 . 'LEFT JOIN ' . _DB_PREFIX_ . 'category c ON c.id_category = ps.id_category_default '
-		 . 'LEFT JOIN ' . _DB_PREFIX_ . 'gshoppingflux gc ON gc.id_gcategory = c.id_category '
-		 . 'LEFT JOIN ' . _DB_PREFIX_ . 'gshoppingflux_lang gl ON gl.id_gcategory = gc.id_gcategory '
-		 . 'WHERE p.active = 1 AND c.active = 1 AND gc.export = 1 '
-		 . 'AND pl.id_lang='.$id_lang.' AND gl.id_lang='.$id_lang;
-		 
-	// Multishops filter		
-	if (Configuration::get('PS_MULTISHOP_FEATURE_ACTIVE') && count(Shop::getShops(true, null, true)) > 1) {
-	    $sql .= ' AND gc.id_shop = '.$id_shop.' AND pl.id_shop = '.$id_shop.' AND ps.id_shop = '.$id_shop.' AND gl.id_shop = '.$id_shop;
-	}
+		// Get module configuration for this shop
+		$this->module_conf = $this->getConfigFieldsValues($id_shop);
 		
-	// Check EAN13
-	if ($module_conf['no_gtin']!=1)
-		$sql .= ' AND p.ean13 != "" AND p.ean13 != 0';
-	
-	// Check BRAND
-	if ($module_conf['no_brand']!=1)
-		$sql .= ' AND p.id_manufacturer != "" AND p.id_manufacturer != 0';
+		// Init categories special attributes : 
+		// Google's matching category, gender, age_group, color_group, material, pattern, size...
+		$this->getGCategValues($id_lang, $id_shop);
 		
-	$products = Db::getInstance()->ExecuteS($sql);
-	$count_products = 0;
-	$count_combinations = 0;
-	$count_attr = array();
-	$module_conf['color'] = explode(";",$module_conf['color']);
-	$module_conf['material'] = explode(";",$module_conf['material']);
-	$module_conf['pattern'] = explode(";",$module_conf['pattern']);
-	$module_conf['size'] = explode(";",$module_conf['size']);
-	
-	foreach ($products as $product)
-	{
-		$context = Context::getContext();
-		$context->language->id = $id_lang;
-		$context->shop->id = $id_shop;
-		$p = new Product($product['id_product'], true, $id_lang, $id_shop, $context);
-		$attributeCombinations = $p->getAttributeCombinations($id_lang);
+		// Init file_path value
+        if ($this->module_conf['gen_file_in_root']) {
+            $generate_file_path = dirname(__FILE__) .'/../../'. $this->_getOutputFileName($lang['iso_code'], $id_shop);
+        } else {
+            $generate_file_path = dirname(__FILE__) . '/file_exports/'. $this->_getOutputFileName($lang['iso_code'], $id_shop);
+        }
+        
+		$meta = Meta::getMetaByPage('index', $id_lang);
+        // Google Shopping XML
+        $xml = '<?xml version="1.0" encoding="'.self::CHARSET.'" ?>' . "\n";
+        $xml .= '<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">' . "\n\n";
+		$xml .= '<channel>' . "\n";		
+        // Shop name
+		$xml .= '<title><![CDATA['.$this->shop->name.']]></title>' . "\n";		
+		 // Shop description
+		$xml .= '<description><![CDATA['.$this->getShopDescription($id_lang, $id_shop).']]></description>' . "\n";
+        $xml .= '<link href="' . htmlspecialchars($this->uri, self::REPLACE_FLAGS, self::CHARSET, false) . '" rel="alternate" type="text/html"/>' . "\n";
+		$xml .= '<image>' . "\n";
+		$xml .= '<title><![CDATA[' . Configuration::get('PS_SHOP_NAME') . ']]></title>' . "\n";
+		$xml .= '<url>' . htmlspecialchars($this->uri, self::REPLACE_FLAGS, self::CHARSET, false) . 'img/logo.jpg</url>' . "\n";
+		$xml .= '<link>' . htmlspecialchars($this->uri, self::REPLACE_FLAGS, self::CHARSET, false) . '</link>' . "\n";
+		$xml .= '</image>' . "\n";
+        $xml .= '<modified>' . date('Y-m-d') . 'T01:01:01Z</modified>' . "\n";
+        $xml .= '<author>'."\n".'<name>' . htmlspecialchars(Configuration::get('PS_SHOP_NAME'), self::REPLACE_FLAGS, self::CHARSET, false)  . '</name>'."\n".'</author>' . "\n\n";
+        
+        $googleshoppingfile = fopen($generate_file_path, 'w');
+        
+        // Add UTF-8 byte order mark
+        fwrite($googleshoppingfile, pack("CCC", 0xef, 0xbb, 0xbf));
+        
+        // File header 
+        fwrite($googleshoppingfile, $xml);
+		
+		$sql = 'SELECT p.*, pl.*, ps.id_category_default as category_default, gc.*, gl.* ' //fl.*, 
+			 . 'FROM ' . _DB_PREFIX_ . 'product p '
+			 . 'LEFT JOIN ' . _DB_PREFIX_ . 'product_lang pl ON pl.id_product = p.id_product '
+			 . 'LEFT JOIN ' . _DB_PREFIX_ . 'product_shop ps ON ps.id_product = p.id_product '
+			 . 'LEFT JOIN ' . _DB_PREFIX_ . 'category c ON c.id_category = ps.id_category_default '
+			 . 'LEFT JOIN ' . _DB_PREFIX_ . 'gshoppingflux gc ON gc.id_gcategory = c.id_category '
+			 . 'LEFT JOIN ' . _DB_PREFIX_ . 'gshoppingflux_lang gl ON gl.id_gcategory = gc.id_gcategory '
+			 . 'WHERE p.active = 1 AND c.active = 1 AND gc.export = 1 '
+			 . 'AND pl.id_lang='.$id_lang.' AND gl.id_lang='.$id_lang;
+			 
+		// Multishops filter		
+		if (Configuration::get('PS_MULTISHOP_FEATURE_ACTIVE') && count(Shop::getShops(true, null, true)) > 1) {
+            $sql .= ' AND gc.id_shop = '.$id_shop.' AND pl.id_shop = '.$id_shop.' AND ps.id_shop = '.$id_shop.' AND gl.id_shop = '.$id_shop;
+        }
+		
+		// Check EAN13
+		if ($this->module_conf['no_gtin']!=1)
+			$sql .= ' AND p.ean13 != "" AND p.ean13 != 0';
+		
+		// Check BRAND
+		if ($this->module_conf['no_brand']!=1)
+			$sql .= ' AND p.id_manufacturer != "" AND p.id_manufacturer != 0';
+		
+        $products = Db::getInstance()->ExecuteS($sql);
+		$this->nb_total_products = 0;
+		$this->nb_not_exported_products = 0;
+		$this->nb_combinations = 0;
+		$this->nb_prd_w_attr = array();
+		
+        foreach ($products as $product)
+		{
+			$context = Context::getContext();
+			$context->language->id = $id_lang;
+			$context->shop->id = $id_shop;
+			$p = new Product($product['id_product'], true, $id_lang, $id_shop, $context);
+			$attributeCombinations = $p->getAttributeCombinations($id_lang);
+				
+			if ($this->module_conf['mpn_type']=='reference' && !empty($product['reference']))
+				$product['pid'] = $product['reference'];
+			else if ($this->module_conf['mpn_type']=='supplier_reference' && !empty($product['supplier_reference']))
+				$product['pid'] = $product['supplier_reference'];
+			else 
+				$product['pid'] = $product['id_product'];
+			$product['gid'] = $product['pid'];
 			
-		$product['gid'] = $product['id_product'];
-		if(count($attributeCombinations)>0 && $module_conf['export_attributes']==1){
-			$attr = array();	
-			$count_product_combin = (int)0;
-			foreach($attributeCombinations as $a => $attribute){
-				$attr[$attribute['id_product_attribute']][$attribute['id_attribute_group']] = $attribute;
-			}
-			foreach($attr as $id_attr => $v){
-				$count_product_combin++;	
-				foreach($v as $k => $a){
-					foreach($module_conf['color'] as $c){
-						if($k == $c){
-							$product['color'] = $a['attribute_name'];	
+			$xml_googleshopping = $this->getItemXML($product, $lang, $id_shop);
+			fwrite($googleshoppingfile, $xml_googleshopping);
+				
+			if(count($attributeCombinations)>0 && $this->module_conf['export_attributes']==1){
+				$attr = array();
+				foreach($attributeCombinations as $a => $attribute){
+					$attr[$attribute['id_product_attribute']][$attribute['id_attribute_group']] = $attribute;
+				}
+				foreach($attr as $id_attr => $v){
+					foreach($v as $k => $a){
+						foreach($this->categories_values[$product['id_gcategory']]['gcat_color[]'] as $c){
+							if($k == $c){
+								$product['color'] = $a['attribute_name'];
+							}
 						}
-					}
-					if(empty($product['color'])){
-						foreach($module_conf['material'] as $c){
+						foreach($this->categories_values[$product['id_gcategory']]['gcat_material[]'] as $c){
 							if($k == $c){
 								$product['material'] = $a['attribute_name'];	
 							}
 						}
-					}
-					if(empty($product['color']) && empty($product['material'])){
-						foreach($module_conf['pattern'] as $c){
+						foreach($this->categories_values[$product['id_gcategory']]['gcat_pattern[]'] as $c){
 							if($k == $c){
 								$product['pattern'] = $a['attribute_name'];	
 							}
 						}
-					}
-					if(empty($product['color']) && empty($product['material']) && empty($product['pattern'])){
-						foreach($module_conf['size'] as $c){
+						foreach($this->categories_values[$product['id_gcategory']]['gcat_size[]'] as $c){
 							if($k == $c){
 								$product['size'] = $a['attribute_name'];	
 							}
-						}
-					}											
-					$product['quantity'] = $a['quantity'];
-					$product['weight'] = $a['weight'];					
+						}								
+						$product['quantity'] = $a['quantity'];
+						$product['weight'] = $a['weight'];					
+					}					
+					
+					if(empty($product['color']) && empty($product['material']) && empty($product['pattern']) && empty($product['size'])) 
+					{
+						continue 2;
+					}
+										
+					$product['item_group_id'] = $product['pid'];
+					$product['gid'] = $product['pid'].'-'.$id_attr;
+					$xml_googleshopping = $this->getItemXML($product, $lang, $id_shop, $id_attr);
+					fwrite($googleshoppingfile, $xml_googleshopping);							
+					$product['color'] = '';
+					$product['material'] = '';
+					$product['pattern'] = '';
+					$product['size'] = '';
 				}
-				
-				if(empty($product['color']) && empty($product['material']) && empty($product['pattern']) && empty($product['size']) ) 
-				{	
-					$xml_googleshopping = $this->getItemXML($product, $lang, $id_shop);
-					fwrite($googleshoppingfile, $xml_googleshopping);
-					$count_products++;
-					continue 2;
-				}
-				
-				$product['gid'] = $product['id_product'].'-'.$count_product_combin;	
-				$product['item_group_id'] = $product['reference'];
-				if ($module_conf['mpn_type']=='supplier_reference' && !empty($product['supplier_reference']))
-					$product['item_group_id'] = $product['supplier_reference'];
-				if(empty($product['item_group_id']))
-					$product['item_group_id'] = $product['id_product'];
-				$xml_googleshopping = $this->getItemXML($product, $lang, $id_shop, $id_attr);
-				fwrite($googleshoppingfile, $xml_googleshopping);
-				$product['color'] = '';
-				$product['material'] = '';
-				$product['pattern'] = '';
-				$product['size'] = '';	
-				$count_combinations++;
-				$count_attr[$product['id_product']] = 1;
-				
+						
 			}
+        }
+        $xml = '</channel>'."\n".'</rss>';
+        fwrite($googleshoppingfile, $xml);
+        fclose($googleshoppingfile);
 					
-		} else {
-			$xml_googleshopping = $this->getItemXML($product, $lang, $id_shop);
-	    		fwrite($googleshoppingfile, $xml_googleshopping);
-			$count_products++;		
-		}
-			
-	}
-	
-	$xml = '</channel>'."\n".'</rss>';
-	fwrite($googleshoppingfile, $xml);
-	fclose($googleshoppingfile);
-					
-	@chmod($generate_file_path, 0777);
-	return array('nb_products' => ($count_products+count($count_attr)),'nb_combinations' => $count_combinations,'nb_prod_attr' => count($count_attr));
+        @chmod($generate_file_path, 0777);
+        return array('nb_products' => $this->nb_total_products, 'nb_combinations' => $this->nb_combinations, 'nb_prod_w_attr' => count($this->nb_prd_w_attr), 'non_exported_products' => $this->nb_not_exported_products);
 		
-	}
+    }
 	
 	private function getItemXML($product, $lang, $id_shop, $combination = false){
 		
 		$xml_googleshopping = '';
 		$id_lang = (int)$lang['id_lang'];
 		$title_limit       = 70;
-        	$description_limit = 10000;
-        	$languages     = Language::getLanguages();
-        	$tailleTabLang = sizeof($languages);
+	        $description_limit = 10000;
+	        $languages     = Language::getLanguages();
+	        $tailleTabLang = sizeof($languages);
 		$context = Context::getContext();
 		$context->language->id = $id_lang;
 		$context->shop->id = $id_shop;
 		$p = new Product($product['id_product'], true, $id_lang, $id_shop, $context);
 		
 		// Get module configuration for this shop
-		$module_conf = $this->getConfigFieldsValues($id_shop);
+		//$this->module_conf = $this->getConfigFieldsValues($id_shop);
 		
 		if(!$combination)
 			$product['quantity'] = StockAvailable::getQuantityAvailableByProduct($product['id_product'], 0, $id_shop);
 		
-			// Exclude non-available products
-			if($module_conf['export_nap']===0 && $product['quantity'] < 1) return;
-			// Check minimum product price
-			$price = Product::getPriceStatic((int)$product['id_product'], true);
-			if ((float)$module_conf['export_min_price']>0 && (float)$module_conf['export_min_price']>(float)$price) return;	
-            				
-            $cat_link_rew = Category::getLinkRewrite($product['id_gcategory'], intval($lang));
-			
-            $product_link = $this->context->link->getProductLink((int) ($product['id_product']), $product['link_rewrite'], $cat_link_rew, $product['ean13'], (int) ($product['id_lang']), $id_shop, 0, true);
+		// Exclude non-available products
+		if($this->module_conf['export_nap']===0 && $product['quantity'] < 1){
+			$this->nb_not_exported_products++;
+			return;
+		}
+		
+		// Check minimum product price
+		$price = Product::getPriceStatic((int)$product['id_product'], true);
+		if ((float)$this->module_conf['export_min_price']>0 && (float)$this->module_conf['export_min_price']>(float)$price) return;	
+						
+		$cat_link_rew = Category::getLinkRewrite($product['id_gcategory'], intval($lang));
+		
+		$product_link = $this->context->link->getProductLink((int) ($product['id_product']), $product['link_rewrite'], $cat_link_rew, $product['ean13'], (int) ($product['id_lang']), $id_shop, 0, true);
             
-            // Product name
+        	// Product name
 		$title_crop = ucfirst(mb_strtolower($product['name'], self::CHARSET));
 		// Michael Hjulskov
 		//  Product color attribute, if any
@@ -1596,199 +1741,222 @@ class GShoppingFlux extends Module
 		if(!empty($product['size']))
 			$title_crop .= ' ' . $product['size'];
 		// END Michael Hjulskov			
-            if (strlen($product['name']) > $title_limit) {
-                $title_crop = substr($title_crop, 0, ($title_limit - 1));
-                $title_crop = substr($title_crop, 0, strrpos($title_crop, " "));
-            }
-            
-			// Description type
-            if ($module_conf['description'] == 'long') {
-                $description_crop = $product['description'];
-            } else if ($module_conf['description'] == 'short') {
-                $description_crop = $product['description_short'];
-            } else if ($module_conf['description'] == 'meta') {
-                $description_crop = $product['meta_description'];
-            }
-            $description_crop = $this->rip_tags($description_crop);
-            
-            if (strlen($description_crop) > $description_limit) {
-                $description_crop = substr($description_crop, 0, ($description_limit - 1));
-                $description_crop = substr($description_crop, 0, strrpos($description_crop, " ")).' ...';
-            }
-            $xml_googleshopping .= '<item>' . "\n";
-            $xml_googleshopping .= '<g:id>' . $product['gid'] . '-' . $lang['iso_code'] . '</g:id>' . "\n";
-            $xml_googleshopping .= '<title><![CDATA[' . $title_crop . ']]></title>' . "\n";
-            $xml_googleshopping .= '<description><![CDATA[' . $description_crop . ']]></description>' . "\n";
-            $xml_googleshopping .= '<link><![CDATA[' . htmlspecialchars($product_link, self::REPLACE_FLAGS, self::CHARSET, false) . ']]></link>' . "\n";
-            
-            // Image links 
-			$images       = Image::getImages($lang['id_lang'], $product['id_product']);
-            $indexTabLang = 0;            
-            if ($tailleTabLang > 1) {
-                while (sizeof($images) < 1 && $indexTabLang < $tailleTabLang) {
-                    if ($languages[$indexTabLang]['id_lang'] != $lang['id_lang']) {
-                        $images = Image::getImages($languages[$indexTabLang]['id_lang'], $product['id_product']);
-                    }
-                    $indexTabLang++;
-                }
-            }            
-            $nbimages   = 0;
-            $image_type = $module_conf['img_type'];
-            if ($image_type == '')
-                $image_type = 'large_default';            
-            foreach ($images as $im) {
-                $image = $this->context->link->getImageLink($product['link_rewrite'], $product['id_product'] . '-' . $im['id_image'], $image_type);
-				$image = preg_replace('*http://'.Tools::getHttpHost().'/*',$this->uri,$image);
-                $xml_googleshopping .= '<g:image_link><![CDATA[' . $image . ']]></g:image_link>' . "\n";
-                // max images by product
-                if (++$nbimages == 10)
-                    break;
-            }
-			
-			// Product condition, or category's condition attribute, or its parent one...
-			// Product condition = new, used, refurbished
-			if(empty($product['condition']))
-				$product['condition'] = $this->categories_values[$product['id_gcategory']]['gcat_condition'];
-			if(!empty($product['condition']))
-				$xml_googleshopping .= '<g:condition><![CDATA[' . $product['condition'] . ']]></g:condition>' . "\n";
-			
-			// Shop category
-            $breadcrumb = GCategories::getPath($product['id_gcategory'], '', $id_lang, $id_shop, $this->id_root);
-            $xml_googleshopping .= '<g:product_type><![CDATA[' . $breadcrumb . ']]></g:product_type>' . "\n";
-			
-            // Matching Google category, or parent categories' one				
-			$product['gcategory'] = $this->categories_values[$product['category_default']]['gcategory'];
-			$xml_googleshopping .= '<g:google_product_category><![CDATA['.$product['gcategory'].']]></g:google_product_category>' . "\n";
-			
-			// Product quantity & availability
-			if (empty($this->categories_values[$product['category_default']]['gcat_avail'])) {
-				if ($module_conf['quantity'] == 1)
-					$xml_googleshopping .= '<g:quantity>'.$product['quantity'].'</g:quantity>'."\n";
-				if ($product['quantity'] > 0) {
-                    $xml_googleshopping .= '<g:availability>in stock</g:availability>' . "\n";
-                } else {
-                    $xml_googleshopping .= '<g:availability>out of stock</g:availability>' . "\n";
-                }
-            }else {
-				if ($module_conf['quantity'] == 1 && $product['quantity'] > 0)
-					$xml_googleshopping .= '<g:quantity>'.$product['quantity'].'</g:quantity>'."\n";
-				$xml_googleshopping .= '<g:availability>'.$this->categories_values[$product['category_default']]['gcat_avail'].'</g:availability>' . "\n";
-			}
-			
-			// Price(s)
-			$currency = new Currency((int)Configuration::get('PS_CURRENCY_DEFAULT'));
-			if(!$combination)
-				$price = round($p->getPriceStatic($product['id_product'], true),2);
-			else
-				$price = round($p->getPriceStatic($product['id_product'], true, $combination),2);
-				
-			$price = number_format($price,2,'.',' ');
-			$price_without_reduct = round($p->getPriceWithoutReduct(false),2);
-			$price_without_reduct = number_format($price_without_reduct,2,'.',' ');
-			if ((float)($price) < (float)($price_without_reduct)) {
-				$xml_googleshopping .='<g:price>'.$price_without_reduct.' '. $currency->iso_code.'</g:price>'."\n";
-				$xml_googleshopping .='<g:sale_price>'.$price.' '. $currency->iso_code.'</g:sale_price>'."\n";
-			} else {
-				$xml_googleshopping .='<g:price>'.$price.' '. $currency->iso_code.'</g:price>'."\n";
-			}
-            
-            $identifier_exists = 0;            
-			// GTIN (EAN, UPC, JAN, ISBN)
-            if ($module_conf['no_gtin']!=0 && $product['ean13'] != '' && $product['ean13'] != '0') {
-                $xml_googleshopping .= '<g:gtin>' . $product['ean13'] . '</g:gtin>' . "\n";
-                $identifier_exists++;
-            }
-            
-			// Brand
-            if ($module_conf['no_brand']!=0 && !empty($product['id_manufacturer'])) {
-                $xml_googleshopping .= '<g:brand><![CDATA[' . htmlspecialchars(Manufacturer::getNameById(intval($product['id_manufacturer'])), self::REPLACE_FLAGS, self::CHARSET, false) . ']]></g:brand>' . "\n";
-                $identifier_exists++;
-            }
-			
-			// MPN
-			if(empty($product['supplier_reference']))
-				$product['supplier_reference'] = ProductSupplier::getProductSupplierReference($product['id_product'], 0, $product['id_supplier']);
-			if ($module_conf['mpn_type']=='reference' && !empty($product['reference'])) {
-				$xml_googleshopping .= '<g:mpn><![CDATA[' . $product['reference'] . ']]></g:mpn>' . "\n";
-				$identifier_exists++;
-			} else if ($module_conf['mpn_type']=='supplier_reference' && !empty($product['supplier_reference'])){
-				$xml_googleshopping .= '<g:mpn><![CDATA[' . $product['supplier_reference'] . ']]></g:mpn>' . "\n";
-				$identifier_exists++;
-			}
-            
-			// Tag "identifier_exists"
-            if ($module_conf['id_exists_tag'] && $identifier_exists<2) {
-                $xml_googleshopping .= '<g:identifier_exists>FALSE</g:identifier_exists>' . "\n";
-            }
-            
-			// Product gender and age_group attributes association
-			$product_features = $this->getProductFeatures($product['id_product'], $id_lang, $id_shop);
-			foreach($product_features as $f => $feature){
-				switch($feature['id_feature'])
-				{
-					case $module_conf['gender']:
-						$product['gender'] = $feature['value'];
-						break;
-					
-					case $module_conf['age_group']:
-						$product['age_group'] = $feature['value'];
-						break;
-				}
-			}
-				
-			//  Product gender attribute, or category gender attribute, or parent's one
-			if(empty($product['gender']))
-				$product['gender'] = $this->categories_values[$product['category_default']]['gcat_gender'];
-			if(!empty($product['gender']))	
-				$xml_googleshopping .= '<g:gender><![CDATA[' . $product['gender'] . ']]></g:gender>' . "\n";
-            
-			// Product age_group attribute, or category age_group attribute, or parent's one
-			if(empty($product['age_group']))			
-				$product['age_group'] = $this->categories_values[$product['category_default']]['gcat_age_group'];
-			if(!empty($product['age_group']))
-				$xml_googleshopping .= '<g:age_group><![CDATA[' . $product['age_group'] . ']]></g:age_group>' . "\n";
-				
-			// Product attributes combination group
-			if($combination && !empty($product['item_group_id']))
-				$xml_googleshopping .= '<g:item_group_id><![CDATA[' . $product['item_group_id'] . ']]></g:item_group_id>' . "\n";
-			
-			//  Product color attribute, if any
-			if(!empty($product['color']))	
-				$xml_googleshopping .= '<g:color><![CDATA[' . $product['color'] . ']]></g:color>' . "\n";
-				
-			//  Product color attribute, if any
-			if(!empty($product['material']))	
-				$xml_googleshopping .= '<g:material><![CDATA[' . $product['material'] . ']]></g:material>' . "\n";
-				
-			//  Product color attribute, if any
-			if(!empty($product['pattern']))	
-				$xml_googleshopping .= '<g:pattern><![CDATA[' . $product['pattern'] . ']]></g:pattern>' . "\n";
-            
-			// Product size attribute, if any
-			if(!empty($product['size']))
-				$xml_googleshopping .= '<g:size><![CDATA[' . $product['size'] . ']]></g:size>' . "\n";
-            
-            // Featured products
-            if ($module_conf['featured_products'] == 1 && $product['on_sale'] != '0') {
-                $xml_googleshopping .= '<g:featured_product>true</g:featured_product>' . "\n";
-            }
-			
-            // Shipping
-            $xml_googleshopping .= '<g:shipping>' . "\n";
-            $xml_googleshopping .= "\t".'<g:country>' . $module_conf['shipping_country'] . '</g:country>' . "\n";
-            $xml_googleshopping .= "\t".'<g:service>Standard</g:service>' . "\n";
-            $xml_googleshopping .= "\t".'<g:price>' . number_format($module_conf['shipping_price'],2,'.',' ') . ' '. $currency->iso_code .'</g:price>' . "\n";
-            $xml_googleshopping .= '</g:shipping>' . "\n";            
-            
-            // Shipping weight
-            if ($product['weight'] != '0') {
-                $xml_googleshopping .= '<g:shipping_weight>' . number_format($product['weight'], 2, '.', '') . ' '. Configuration::get('PS_WEIGHT_UNIT').'</g:shipping_weight>' . "\n";
-            }
-			
-            $xml_googleshopping .= '</item>' . "\n\n";
+		if (strlen($product['name']) > $title_limit) {
+			$title_crop = substr($title_crop, 0, ($title_limit - 1));
+			$title_crop = substr($title_crop, 0, strrpos($title_crop, " "));
+		}
 		
-			return $xml_googleshopping;
+		// Description type
+		if ($this->module_conf['description'] == 'long') {
+			$description_crop = $product['description'];
+		} else if ($this->module_conf['description'] == 'short') {
+			$description_crop = $product['description_short'];
+		} else if ($this->module_conf['description'] == 'meta') {
+			$description_crop = $product['meta_description'];
+		}
+		$description_crop = $this->rip_tags($description_crop);
+		
+		if (strlen($description_crop) > $description_limit) {
+			$description_crop = substr($description_crop, 0, ($description_limit - 1));
+			$description_crop = substr($description_crop, 0, strrpos($description_crop, " ")).' ...';
+		}
+		$xml_googleshopping .= '<item>' . "\n";
+		$xml_googleshopping .= '<g:id>' . $product['gid'] . '</g:id>' . "\n";
+		$xml_googleshopping .= '<title><![CDATA[' . $title_crop . ']]></title>' . "\n";
+		$xml_googleshopping .= '<description><![CDATA[' . $description_crop . ']]></description>' . "\n";
+		$xml_googleshopping .= '<link><![CDATA[' . htmlspecialchars($product_link, self::REPLACE_FLAGS, self::CHARSET, false) . ']]></link>' . "\n";
+		
+		// Image links 
+		$images       = Image::getImages($lang['id_lang'], $product['id_product'], $combination);
+		$indexTabLang = 0;            
+		if ($tailleTabLang > 1) {
+			while (sizeof($images) < 1 && $indexTabLang < $tailleTabLang) {
+				if ($languages[$indexTabLang]['id_lang'] != $lang['id_lang']) {
+					$images = Image::getImages($languages[$indexTabLang]['id_lang'], $product['id_product']);
+				}
+				$indexTabLang++;
+			}
+		}            
+		$nbimages   = 0;
+		$image_type = $this->module_conf['img_type'];
+		if ($image_type == '')
+			$image_type = 'large_default';            
+		foreach ($images as $im) {
+			$image = $this->context->link->getImageLink($product['link_rewrite'], $product['id_product'] . '-' . $im['id_image'], $image_type);
+			$image = preg_replace('*http://'.Tools::getHttpHost().'/*',$this->uri,$image);
+			$xml_googleshopping .= '<g:image_link><![CDATA[' . $image . ']]></g:image_link>' . "\n";
+			// max images by product
+			if (++$nbimages == 10)
+				break;
+		}
+		
+		// Product condition, or category's condition attribute, or its parent one...
+		// Product condition = new, used, refurbished
+		if(empty($product['condition']))
+			$product['condition'] = $this->categories_values[$product['id_gcategory']]['gcat_condition'];
+		if(!empty($product['condition']))
+			$xml_googleshopping .= '<g:condition><![CDATA[' . $product['condition'] . ']]></g:condition>' . "\n";
+		
+		// Shop category
+		$breadcrumb = GCategories::getPath($product['id_gcategory'], '', $id_lang, $id_shop, $this->id_root);
+		$product_type = '';
+		if(!empty($this->module_conf['product_type[]'][$id_lang])){
+			$product_type = $this->module_conf['product_type[]'][$id_lang];
+			if(!empty($breadcrumb)) $product_type .= " > ";
+		}
+		$product_type .= $breadcrumb;
+		$xml_googleshopping .= '<g:product_type><![CDATA[' . $product_type . ']]></g:product_type>' . "\n";
+		
+		// Matching Google category, or parent categories' one				
+		$product['gcategory'] = $this->categories_values[$product['category_default']]['gcategory'];
+		$xml_googleshopping .= '<g:google_product_category><![CDATA['.$product['gcategory'].']]></g:google_product_category>' . "\n";
+		
+		// Product quantity & availability
+		if (empty($this->categories_values[$product['category_default']]['gcat_avail'])) {
+			if ($this->module_conf['quantity'] == 1)
+				$xml_googleshopping .= '<g:quantity>'.$product['quantity'].'</g:quantity>'."\n";
+			if ($product['quantity'] > 0) {
+				$xml_googleshopping .= '<g:availability>in stock</g:availability>' . "\n";
+			} else {
+				$xml_googleshopping .= '<g:availability>out of stock</g:availability>' . "\n";
+			}
+		}else {
+			if ($this->module_conf['quantity'] == 1 && $product['quantity'] > 0)
+				$xml_googleshopping .= '<g:quantity>'.$product['quantity'].'</g:quantity>'."\n";
+			$xml_googleshopping .= '<g:availability>'.$this->categories_values[$product['category_default']]['gcat_avail'].'</g:availability>' . "\n";
+		}
+		
+		// Price(s)
+		$currency = new Currency((int)Configuration::get('PS_CURRENCY_DEFAULT'));
+		if(!$combination)
+			$price = round($p->getPriceStatic($product['id_product'], true),2);
+		else
+			$price = round($p->getPriceStatic($product['id_product'], true, $combination),2);
 			
+		$price = number_format($price,2,'.',' ');
+		$price_without_reduct = round($p->getPriceWithoutReduct(false),2);
+		$price_without_reduct = number_format($price_without_reduct,2,'.',' ');
+		if ((float)($price) < (float)($price_without_reduct)) {
+			$xml_googleshopping .='<g:price>'.$price_without_reduct.' '. $currency->iso_code.'</g:price>'."\n";
+			$xml_googleshopping .='<g:sale_price>'.$price.' '. $currency->iso_code.'</g:sale_price>'."\n";
+		} else {
+			$xml_googleshopping .='<g:price>'.$price.' '. $currency->iso_code.'</g:price>'."\n";
+		}
+		
+		$identifier_exists = 0;            
+		// GTIN (EAN, UPC, JAN, ISBN)
+		if ($this->module_conf['no_gtin']!=0 && $product['ean13'] != '' && $product['ean13'] != '0') {
+			$xml_googleshopping .= '<g:gtin>' . $product['ean13'] . '</g:gtin>' . "\n";
+			$identifier_exists++;
+		}
+		
+		// Brand
+		if ($this->module_conf['no_brand']!=0 && !empty($product['id_manufacturer'])) {
+			$xml_googleshopping .= '<g:brand><![CDATA[' . htmlspecialchars(Manufacturer::getNameById(intval($product['id_manufacturer'])), self::REPLACE_FLAGS, self::CHARSET, false) . ']]></g:brand>' . "\n";
+			$identifier_exists++;
+		}
+		
+		// MPN
+		if(empty($product['supplier_reference']))
+			$product['supplier_reference'] = ProductSupplier::getProductSupplierReference($product['id_product'], 0, $product['id_supplier']);
+		if ($this->module_conf['mpn_type']=='reference' && !empty($product['reference'])) {
+			$xml_googleshopping .= '<g:mpn><![CDATA[' . $product['reference'] . ']]></g:mpn>' . "\n";
+			$identifier_exists++;
+		} else if ($this->module_conf['mpn_type']=='supplier_reference' && !empty($product['supplier_reference'])){
+			$xml_googleshopping .= '<g:mpn><![CDATA[' . $product['supplier_reference'] . ']]></g:mpn>' . "\n";
+			$identifier_exists++;
+		}
+		
+		// Tag "identifier_exists"
+		if ($this->module_conf['id_exists_tag'] && $identifier_exists<2) {
+			$xml_googleshopping .= '<g:identifier_exists>FALSE</g:identifier_exists>' . "\n";
+		}
+		
+		// Product gender and age_group attributes association
+		$product_features = $this->getProductFeatures($product['id_product'], $id_lang, $id_shop);
+		$product['gender'] = $this->categories_values[$product['category_default']]['gcat_gender'];
+		$product['age_group'] = $this->categories_values[$product['category_default']]['gcat_age_group'];
+		foreach($product_features as $f => $feature){
+			switch($feature['id_feature'])
+			{
+				case $this->module_conf['gender']:
+					$product['gender'] = $feature['value'];
+					continue 2;
+				
+				case $this->module_conf['age_group']:
+					$product['age_group'] = $feature['value'];
+					continue 2;
+			}
+			if(!$product['color']){
+				foreach($this->module_conf['color[]'] as $id => $v)
+					if($v == $feature['id_feature'])$product['color'] = $feature['value'];
+			}
+			if(!$product['material']){
+				foreach($this->module_conf['material[]'] as $id => $v)
+					if($v == $feature['id_feature'])$product['material'] = $feature['value'];
+			}
+			if(!$product['pattern']){
+				foreach($this->module_conf['pattern[]'] as $id => $v)
+					if($v == $feature['id_feature'])$product['pattern'] = $feature['value'];
+			}
+			if(!$product['size']){
+				foreach($this->module_conf['size[]'] as $id => $v)
+					if($v == $feature['id_feature'])$product['size'] = $feature['value'];
+			}
+		}
+		
+		//  Product gender attribute, or category gender attribute, or parent's one
+		if(!empty($product['gender']))	
+			$xml_googleshopping .= '<g:gender><![CDATA[' . $product['gender'] . ']]></g:gender>' . "\n";
+		
+		// Product age_group attribute, or category age_group attribute, or parent's one
+		if(!empty($product['age_group']))
+			$xml_googleshopping .= '<g:age_group><![CDATA[' . $product['age_group'] . ']]></g:age_group>' . "\n";
+		
+		// Product attributes combination groups
+		if($combination && !empty($product['item_group_id']))
+			$xml_googleshopping .= '<g:item_group_id><![CDATA[' . $product['item_group_id'] . ']]></g:item_group_id>' . "\n";
+				
+		// Product color attribute, or category color attribute, or parent's one
+		if(!empty($product['color']))
+			$xml_googleshopping .= '<g:color><![CDATA[' . $product['color'] . ']]></g:color>' . "\n";	
+			  
+		// Product material attribute, or category material attribute, or parent's one
+		if(!empty($product['material']))
+			$xml_googleshopping .= '<g:material><![CDATA[' . $product['material'] . ']]></g:material>' . "\n";
+			
+		// Product color attribute, or category color attribute, or parent's one
+		if(!empty($product['pattern']))
+			$xml_googleshopping .= '<g:pattern><![CDATA[' . $product['pattern'] . ']]></g:pattern>' . "\n";	
+			  
+		// Product material attribute, or category material attribute, or parent's one
+		if(!empty($product['size']))
+			$xml_googleshopping .= '<g:size><![CDATA[' . $product['size'] . ']]></g:size>' . "\n";
+		
+		// Featured products
+		if ($this->module_conf['featured_products'] == 1 && $product['on_sale'] != '0') {
+			$xml_googleshopping .= '<g:featured_product>true</g:featured_product>' . "\n";
+		}
+		
+		// Shipping
+		$xml_googleshopping .= '<g:shipping>' . "\n";
+		$xml_googleshopping .= "\t".'<g:country>' . $this->module_conf['shipping_country'] . '</g:country>' . "\n";
+		$xml_googleshopping .= "\t".'<g:service>Standard</g:service>' . "\n";
+		$xml_googleshopping .= "\t".'<g:price>' . number_format($this->module_conf['shipping_price'],2,'.',' ') . ' '. $currency->iso_code .'</g:price>' . "\n";
+		$xml_googleshopping .= '</g:shipping>' . "\n";            
+		
+		// Shipping weight
+		if ($product['weight'] != '0') {
+			$xml_googleshopping .= '<g:shipping_weight>' . number_format($product['weight'], 2, '.', '') . ' '. Configuration::get('PS_WEIGHT_UNIT').'</g:shipping_weight>' . "\n";
+		}
+		
+		$xml_googleshopping .= '</item>' . "\n\n";
+		
+		if($combination){$this->nb_combinations++;$this->nb_prd_w_attr[$product['id_product']] = 1;}						
+		$this->nb_total_products++;
+	
+		return $xml_googleshopping;
+		
 	}
 		
 }
