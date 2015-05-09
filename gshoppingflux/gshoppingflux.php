@@ -1511,6 +1511,16 @@ class GShoppingFlux extends Module
     	return 'googleshopping-s'.$shop.'-'. $lang . '.xml';
     }
 	
+	public function getPriceDisplayMethod($id_shop)
+	{
+		$sql = 'SELECT g.price_display_method
+					FROM '._DB_PREFIX_.'group g
+					LEFT JOIN '._DB_PREFIX_.'group_shop gs ON (g.id_group = gs.id_group)
+					WHERE g.id_group=1 AND gs.id_shop = '.(int)$id_shop.';';									
+		$ret = Db::getInstance()->executeS($sql);
+		return ($ret[0]['price_display_method']);		
+	}
+	
 	public function getShopDescription($id_lang, $id_shop)
 	{
 		$sql = 'SELECT ml.description
@@ -1521,16 +1531,16 @@ class GShoppingFlux extends Module
 		return ($ret[0]['description']);		
 	}	
 	
-	 public function generateAllShopsFileList()
-    {
-        // Get all shops
-        $shops = Shop::getShops(true, null, true);
+	public function generateAllShopsFileList()
+    	{
+	        // Get all shops
+	        $shops = Shop::getShops(true, null, true);
 		foreach ($shops as $i => $shop)
 		{
 			$ret[$i] = $this->generateShopFileList($shop);
 		}
 		return $ret;
-    }
+    	}
     
     public function generateShopFileList($shop)
     {
@@ -1828,14 +1838,10 @@ class GShoppingFlux extends Module
 		
 		// Price(s)
 		$currency = new Currency((int)Configuration::get('PS_CURRENCY_DEFAULT'));
-		if(!$combination)
-			$price = round($p->getPriceStatic($product['id_product'], true),2);
-		else
-			$price = round($p->getPriceStatic($product['id_product'], true, $combination),2);
-			
-		$price = number_format($price,2,'.',' ');
-		$price_without_reduct = round($p->getPriceWithoutReduct(false),2);
-		$price_without_reduct = number_format($price_without_reduct,2,'.',' ');
+		$use_tax = ($this->getPriceDisplayMethod($id_shop) ? false : true);
+		$no_tax = (!$use_tax ? true : false);
+		$price = number_format(round($p->getPriceStatic($product['id_product'], $use_tax, $combination, 2), 2),2,'.',' ');
+		$price_without_reduct = number_format(round($p->getPriceWithoutReduct($no_tax, $combination),2),2,'.',' ');
 		if ((float)($price) < (float)($price_without_reduct)) {
 			$xml_googleshopping .='<g:price>'.$price_without_reduct.' '. $currency->iso_code.'</g:price>'."\n";
 			$xml_googleshopping .='<g:sale_price>'.$price.' '. $currency->iso_code.'</g:sale_price>'."\n";
