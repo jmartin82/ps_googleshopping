@@ -897,7 +897,7 @@ class GShoppingFlux extends Module
 				  );	
 		$avail_modes = array(
 					array('id_mode'=>'','name'=>$this->l('Default')),
-					array('id_mode'=>'in_stock','name'=>$this->l('Category\'s products are in stock')),
+					array('id_mode'=>'in stock','name'=>$this->l('Category\'s products are in stock')),
 					array('id_mode'=>'preorder','name'=>$this->l('Category\'s products avail. on preorder'))
 				  );
 		$gender_modes = array(
