@@ -72,7 +72,7 @@ class GShoppingFlux extends Module
 				if (!Configuration::updateValue('GS_PRODUCT_TYPE', '', true, (int)$shop_group_id, (int)$shop_id)
 				 || !Configuration::updateValue('GS_DESCRIPTION', 'short', false, (int)$shop_group_id, (int)$shop_id)
 				 || !Configuration::updateValue('GS_SHIPPING_PRICE', '0.00', false, (int)$shop_group_id, (int)$shop_id)
-				 || !Configuration::updateValue('GS_SHIPPING_COUNTRY', 'EN', false, (int)$shop_group_id, (int)$shop_id)
+				 || !Configuration::updateValue('GS_SHIPPING_COUNTRY', 'UK', false, (int)$shop_group_id, (int)$shop_id)
 				 || !Configuration::updateValue('GS_IMG_TYPE', 'large_default', false, (int)$shop_group_id, (int)$shop_id)
 				 || !Configuration::updateValue('GS_MPN_TYPE', 'reference', false, (int)$shop_group_id, (int)$shop_id)
 				 || !Configuration::updateValue('GS_GENDER', '', false, (int)$shop_group_id, (int)$shop_id)
@@ -804,7 +804,7 @@ class GShoppingFlux extends Module
 		$product_type = array();
 		$description = 'short';
 		$shipping_price = 0;
-		$shipping_country = 'EN';
+		$shipping_country = 'UK';
 		$img_type = 'large_default';
 		$mpn_type = '';
 		$gender = '';
