@@ -77,7 +77,7 @@ class GShoppingFlux extends Module
 				 || !Configuration::updateValue('GS_MPN_TYPE', 'reference', false, (int)$shop_group_id, (int)$shop_id)
 				 || !Configuration::updateValue('GS_GENDER', '', false, (int)$shop_group_id, (int)$shop_id)
 				 || !Configuration::updateValue('GS_AGE_GROUP', '', false, (int)$shop_group_id, (int)$shop_id)
-				 || !Configuration::updateValue('GS_ATTRIBUTES', '', false, (int)$shop_group_id, (int)$shop_id)
+				 || !Configuration::updateValue('GS_ATTRIBUTES', '0', false, (int)$shop_group_id, (int)$shop_id)
 				 || !Configuration::updateValue('GS_COLOR', '', false, (int)$shop_group_id, (int)$shop_id)
 				 || !Configuration::updateValue('GS_MATERIAL', '', false, (int)$shop_group_id, (int)$shop_id)
 				 || !Configuration::updateValue('GS_PATTERN', '', false, (int)$shop_group_id, (int)$shop_id)
@@ -1339,26 +1339,28 @@ class GShoppingFlux extends Module
 						$str .= $tree;
 					}
 					$result[$k]['gcat_name'] = $str.' '.$result[$k]['gcat_name'];
-					$result[$k]['color'] = explode(";",$result[$k]['color']);
-					foreach($result[$k]['color'] as $a => $v){
-						$gid_colors[] = $attributes[$v-1]['name'];				
+					if(Configuration::get('GS_ATTRIBUTES') == 1){
+						$result[$k]['color'] = explode(";",$result[$k]['color']);
+						foreach($result[$k]['color'] as $a => $v){
+							$gid_colors[] = $attributes[$v-1]['name'];				
+						}
+						$result[$k]['material'] = explode(";",$result[$k]['material']);
+						foreach($result[$k]['material'] as $a => $v){
+							$gid_materials[] = $attributes[$v-1]['name'];				
+						}
+						$result[$k]['pattern'] = explode(";",$result[$k]['pattern']);
+						foreach($result[$k]['pattern'] as $a => $v){
+							$gid_patterns[] = $attributes[$v-1]['name'];				
+						}
+						$result[$k]['size'] = explode(";",$result[$k]['size']);
+						foreach($result[$k]['size'] as $a => $v){
+							$gid_sizes[] = $attributes[$v-1]['name'];				
+						}
+						$result[$k]['gid_colors'] = implode(" ; ", $gid_colors);
+						$result[$k]['gid_materials'] = implode(" ; ", $gid_materials);
+						$result[$k]['gid_patterns'] = implode(" ; ", $gid_patterns);
+						$result[$k]['gid_sizes'] = implode(" ; ", $gid_sizes);
 					}
-					$result[$k]['material'] = explode(";",$result[$k]['material']);
-					foreach($result[$k]['material'] as $a => $v){
-						$gid_materials[] = $attributes[$v-1]['name'];				
-					}
-					$result[$k]['pattern'] = explode(";",$result[$k]['pattern']);
-					foreach($result[$k]['pattern'] as $a => $v){
-						$gid_patterns[] = $attributes[$v-1]['name'];				
-					}
-					$result[$k]['size'] = explode(";",$result[$k]['size']);
-					foreach($result[$k]['size'] as $a => $v){
-						$gid_sizes[] = $attributes[$v-1]['name'];				
-					}
-					$result[$k]['gid_colors'] = implode(" ; ", $gid_colors);
-					$result[$k]['gid_materials'] = implode(" ; ", $gid_materials);
-					$result[$k]['gid_patterns'] = implode(" ; ", $gid_patterns);
-					$result[$k]['gid_sizes'] = implode(" ; ", $gid_sizes);
 				}
 				
 			}
@@ -1587,7 +1589,7 @@ class GShoppingFlux extends Module
 		$xml .= '<image>' . "\n";
 		$xml .= '<title><![CDATA[' . Configuration::get('PS_SHOP_NAME') . ']]></title>' . "\n";
 		$xml .= '<url>' .  htmlspecialchars($link->getMediaLink(_PS_IMG_.Configuration::get('PS_LOGO')), self::REPLACE_FLAGS, self::CHARSET, false) . "\n";
-		$xml .= '<link>' . htmlspecialchars($shop_uri, self::REPLACE_FLAGS, self::CHARSET, false) . '</link>' . "\n";
+		$xml .= '<link>' . htmlspecialchars($this->uri, self::REPLACE_FLAGS, self::CHARSET, false) . '</link>' . "\n";
 		$xml .= '</image>' . "\n";
         $xml .= '<modified>' . date('Y-m-d') . 'T01:01:01Z</modified>' . "\n";
         $xml .= '<author>'."\n".'<name>' . htmlspecialchars(Configuration::get('PS_SHOP_NAME'), self::REPLACE_FLAGS, self::CHARSET, false)  . '</name>'."\n".'</author>' . "\n\n";
@@ -1851,7 +1853,7 @@ class GShoppingFlux extends Module
 		
 		$identifier_exists = 0;            
 		// GTIN (EAN, UPC, JAN, ISBN)
-		if ($this->module_conf['no_gtin']!=0 && $product['ean13'] != '' && $product['ean13'] != '0') {
+		if ($this->module_conf['no_gtin']!=1 && $product['ean13'] != '' && $product['ean13'] != '0') {
 			$xml_googleshopping .= '<g:gtin>' . $product['ean13'] . '</g:gtin>' . "\n";
 			$identifier_exists++;
 		}
