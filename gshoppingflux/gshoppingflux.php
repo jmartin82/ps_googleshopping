@@ -1630,12 +1630,12 @@ class GShoppingFlux extends Module
 		$this->nb_not_exported_products = 0;
 		$this->nb_combinations = 0;
 		$this->nb_prd_w_attr = array();
+		$context = Context::getContext();
+		$context->language->id = $id_lang;
+		$context->shop->id = $id_shop;
 		
         foreach ($products as $product)
 		{
-			$context = Context::getContext();
-			$context->language->id = $id_lang;
-			$context->shop->id = $id_shop;
 			$p = new Product($product['id_product'], true, $id_lang, $id_shop, $context);
 			$attributeCombinations = $p->getAttributeCombinations($id_lang);
 				
