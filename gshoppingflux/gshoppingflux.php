@@ -119,20 +119,21 @@ class GShoppingFlux extends Module
 			SELECT c.id_category, c.id_parent, c.active
 			FROM '._DB_PREFIX_.'category c
 			INNER JOIN `'._DB_PREFIX_.'category_shop` cs ON (cs.id_category=c.id_category AND cs.id_shop='.(int)$id_shop.')
-			ORDER BY c.id_category ASC, c.level_depth ASC, cs.position ASC;');
+			ORDER BY c.id_category ASC, c.level_depth ASC, cs.position ASC;'
+    );
 
 		foreach ($categs as $kc => $cat) {
 			foreach ($languages as $key => $lang)
 				$str[$lang['id_lang']] = '';
 
-			$condition    = '';
+			$condition = '';
 			$availability = '';
-			$gender       = '';
-			$age_group    = '';
-			$color        = '';
-			$material     = '';
-			$pattern      = '';
-			$size         = '';
+			$gender = '';
+			$age_group = '';
+			$color = '';
+			$material = '';
+			$pattern = '';
+			$size = '';
 
 			if (!count(GCategories::get($cat['id_category'], $id_lang, $id_shop)) && ($cat['id_category'] > 0)) {
 				if ($root->id_category == $cat['id_category']) {
@@ -196,7 +197,8 @@ class GShoppingFlux extends Module
 		$gcategories = Db::getInstance()->executeS('
 			SELECT *
 			FROM '._DB_PREFIX_.'gshoppingflux
-			WHERE id_shop = '.(int)$params['old_id_shop']);
+			WHERE id_shop = '.(int)$params['old_id_shop']
+    );
 
 		foreach ($gcategories as $id => $gcateg) {
 			Db::getInstance()->execute('
@@ -1248,8 +1250,6 @@ class GShoppingFlux extends Module
 		$helper->currentIndex = $this->context->link->getAdminLink('AdminModules', false).'&configure='.$this->name.'&tab_module='.$this->tab.'&module_name='.$this->name;
 		$helper->token = Tools::getAdminTokenLite('AdminModules');
 
-		$context = Context::getContext();
-
 		// Get active langs on shop
 		$languages = Language::getLanguages();
 		$shops = Shop::getShops(true, null, true);
@@ -1257,11 +1257,11 @@ class GShoppingFlux extends Module
 
 		foreach ($languages as $i => $lang) {
 			if (Configuration::get('GS_GEN_FILE_IN_ROOT') == 1) {
-				$get_file_url = $this->uri.$this->_getOutputFileName($lang['iso_code'], $context->shop->id);
+				$get_file_url = $this->uri.$this->_getOutputFileName($lang['iso_code'], $this->context->shop->id);
 			}
 
 			else {
-				$get_file_url = $this->uri.'modules/'.$this->name.'/file_exports/'.$this->_getOutputFileName($lang['iso_code'], $context->shop->id);
+				$get_file_url = $this->uri.'modules/'.$this->name.'/file_exports/'.$this->_getOutputFileName($lang['iso_code'], $this->context->shop->id);
 			}
 
 			$output .= '<a href="'.$get_file_url.'">'.$get_file_url.'</a> <br /> ';
@@ -1627,8 +1627,14 @@ class GShoppingFlux extends Module
 		// File header
 		fwrite($googleshoppingfile, $xml);
 
-		$sql = 'SELECT p.*, pl.*, ps.id_category_default as category_default, gc.*, gl.* ' //fl.*,
-			. 'FROM '._DB_PREFIX_.'product p '.'LEFT JOIN '._DB_PREFIX_.'product_lang pl ON pl.id_product = p.id_product '.'LEFT JOIN '._DB_PREFIX_.'product_shop ps ON ps.id_product = p.id_product '.'LEFT JOIN '._DB_PREFIX_.'category c ON c.id_category = ps.id_category_default '.'LEFT JOIN '._DB_PREFIX_.'gshoppingflux gc ON gc.id_gcategory = c.id_category '.'LEFT JOIN '._DB_PREFIX_.'gshoppingflux_lang gl ON gl.id_gcategory = gc.id_gcategory '.'WHERE p.active = 1 AND c.active = 1 AND gc.export = 1 '.'AND pl.id_lang='.$id_lang.' AND gl.id_lang='.$id_lang;
+		$sql = 'SELECT p.*, pl.*, ps.id_category_default as category_default, gc.*, gl.*
+			      FROM '._DB_PREFIX_.'product p
+            LEFT JOIN '._DB_PREFIX_.'product_lang pl ON pl.id_product = p.id_product
+            LEFT JOIN '._DB_PREFIX_.'product_shop ps ON ps.id_product = p.id_product
+            LEFT JOIN '._DB_PREFIX_.'category c ON c.id_category = ps.id_category_default
+            LEFT JOIN '._DB_PREFIX_.'gshoppingflux gc ON gc.id_gcategory = c.id_category
+            LEFT JOIN '._DB_PREFIX_.'gshoppingflux_lang gl ON gl.id_gcategory = gc.id_gcategory
+            WHERE p.active = 1 AND c.active = 1 AND gc.export = 1 '.'AND pl.id_lang='.$id_lang.' AND gl.id_lang='.$id_lang;
 
 		// Multishops filter
 		if (Configuration::get('PS_MULTISHOP_FEATURE_ACTIVE') && count(Shop::getShops(true, null, true)) > 1)
@@ -1647,11 +1653,11 @@ class GShoppingFlux extends Module
 		$this->nb_not_exported_products = 0;
 		$this->nb_combinations= 0;
 		$this->nb_prd_w_attr = array();
-		$this->context->language->id;
-		$this->context->shop->id;
+		$this->context->language->id = $id_lang;
+		$this->context->shop->id = $id_lang;
 
 		foreach ($products as $product) {
-			$p = new Product($product['id_product'], true, $id_lang, $id_shop, $context);
+			$p = new Product($product['id_product'], true, $id_lang, $id_shop, $this->context);
 			$attributeCombinations = $p->getAttributeCombinations($id_lang);
 
 			if ($this->module_conf['mpn_type'] == 'reference' && !empty($product['reference']))
@@ -1733,10 +1739,9 @@ class GShoppingFlux extends Module
 		$description_limit = 10000;
 		$languages = Language::getLanguages();
 		$tailleTabLang = sizeof($languages);
-		$context = Context::getContext();
-		$context->language->id = $id_lang;
-		$context->shop->id = $id_shop;
-		$p = new Product($product['id_product'], true, $id_lang, $id_shop, $context);
+		$this->context->language->id = $id_lang;
+		$this->context->shop->id = $id_shop;
+		$p = new Product($product['id_product'], true, $id_lang, $id_shop, $this->context);
 
 		// Get module configuration for this shop
 		//$this->module_conf = $this->getConfigFieldsValues($id_shop);
