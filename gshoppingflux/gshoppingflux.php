@@ -154,7 +154,7 @@ class GShoppingFlux extends Module
 		if ($delete_params)
 			if (!$this->uninstallDB() || !Configuration::deleteByName('GS_PRODUCT_TYPE') || !Configuration::deleteByName('GS_DESCRIPTION') || !Configuration::deleteByName('GS_SHIPPING_PRICE') || !Configuration::deleteByName('GS_SHIPPING_COUNTRY') || !Configuration::deleteByName('GS_IMG_TYPE') || !Configuration::deleteByName('GS_MPN_TYPE') || !Configuration::deleteByName('GS_GENDER') || !Configuration::deleteByName('GS_AGE_GROUP') || !Configuration::deleteByName('GS_ATTRIBUTES') || !Configuration::deleteByName('GS_COLOR') || !Configuration::deleteByName('GS_MATERIAL') || !Configuration::deleteByName('GS_PATTERN') || !Configuration::deleteByName('GS_SIZE') || !Configuration::deleteByName('GS_EXPORT_MIN_PRICE') || !Configuration::deleteByName('GS_NO_GTIN') || !Configuration::deleteByName('GS_NO_BRAND') || !Configuration::deleteByName('GS_ID_EXISTS_TAG') || !Configuration::deleteByName('GS_EXPORT_NAP') || !Configuration::deleteByName('GS_QUANTITY') || !Configuration::deleteByName('GS_FEATURED_PRODUCTS') || !Configuration::deleteByName('GS_GEN_FILE_IN_ROOT'))
 				return false;
-		
+
 		return true;
 	}
 	
@@ -171,7 +171,7 @@ class GShoppingFlux extends Module
 			return false;
 		if (!$this->install(false))
 			return false;
-		
+
 		return true;
 	}
 	
@@ -195,12 +195,12 @@ class GShoppingFlux extends Module
 			SELECT *
 			FROM ' . _DB_PREFIX_ . 'gshoppingflux
 			WHERE id_shop = ' . (int) $params['old_id_shop']);
-		
+
 		foreach ($gcategories as $id => $gcateg) {
 			Db::getInstance()->execute('
 				INSERT IGNORE INTO ' . _DB_PREFIX_ . 'gshoppingflux (id_gcategory, id_shop)
 				VALUES (null, ' . (int) $params['new_id_shop'] . ')');
-			
+	
 			$gcategories[$id]['new_id_gcategory'] = Db::getInstance()->Insert_ID();
 		}
 		
@@ -209,7 +209,7 @@ class GShoppingFlux extends Module
 					SELECT id_lang, ' . (int) $params['new_id_shop'] . ', gcategory
 					FROM ' . _DB_PREFIX_ . 'gshoppingflux_lang
 					WHERE id_gcategory = ' . (int) $gcateg['id_gcategory'] . ' AND id_shop = ' . (int) $params['old_id_shop']);
-			
+	
 			foreach ($lang as $l)
 				Db::getInstance()->execute('
 					INSERT IGNORE INTO ' . _DB_PREFIX_ . 'gshoppingflux_lang (id_gcategory, id_lang, id_shop, gcategory)
