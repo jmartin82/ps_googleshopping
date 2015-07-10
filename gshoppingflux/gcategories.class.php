@@ -1,199 +1,180 @@
 <?php
-/**
-* 2007-2015 PrestaShop
-*
-* NOTICE OF LICENSE
-*
-* This source file is subject to the Open Software License (OSL 3.0)
-* that is bundled with this package in the file LICENSE.txt.
-* It is also available through the world-wide-web at this URL:
-* http://opensource.org/licenses/osl-3.0.php
-* If you did not receive a copy of the license and are unable to
-* obtain it through the world-wide-web, please send an email
-* to license@prestashop.com so we can send you a copy immediately.
-*
-* DISCLAIMER
-*
-* Do not edit or add to this file if you wish to upgrade PrestaShop to newer
-* versions in the future. If you wish to customize PrestaShop for your
-* needs please refer to http://www.prestashop.com for more information.
-*
-*  @author PrestaShop SA <contact@prestashop.com>
-*  @copyright  2007-2015 PrestaShop SA
-*  @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
-*  International Registered Trademark & Property of PrestaShop SA
-*/
+// <!--
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
 
-/* Debug only */
-if (!defined('_PS_MODE_DEV_'))
-	define('_PS_MODE_DEV_', false);
-/* Compatibility warning */
-define('_PS_DISPLAY_COMPATIBILITY_WARNING_', true);
-if (_PS_MODE_DEV_ === true)
+//   http://www.apache.org/licenses/LICENSE-2.0
+
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+// //-->
+
+class GCategories
 {
-	@ini_set('display_errors', 'on');
-	@error_reporting(E_ALL | E_STRICT);
-	define('_PS_DEBUG_SQL_', true);
+	public static function gets($id_lang, $id_gcategory = null, $id_shop)
+	{
+		$ret = Db::getInstance()->executeS('SELECT g.*, gl.gcategory, s.name as shop_name, cl.name as cat_name '
+			 . 'FROM '._DB_PREFIX_.'gshoppingflux g '
+			 . 'LEFT JOIN '._DB_PREFIX_.'category c ON (c.id_category=g.id_gcategory AND c.id_shop_default=g.id_shop) '
+			 . 'LEFT JOIN '._DB_PREFIX_.'category_shop cs ON (cs.id_category=g.id_gcategory AND cs.id_shop=g.id_shop) '
+			 . 'LEFT JOIN '._DB_PREFIX_.'gshoppingflux_lang gl ON (gl.id_gcategory=g.id_gcategory AND gl.id_lang='.(int)$id_lang.' AND gl.id_shop=g.id_shop) '
+			 . 'LEFT JOIN '._DB_PREFIX_.'shop s ON (s.id_shop=g.id_shop) '
+			 . 'LEFT JOIN '._DB_PREFIX_.'category_lang cl ON (cl.id_category=g.id_gcategory AND cl.id_lang='.(int)$id_lang.' AND cl.id_shop=g.id_shop) '
+			 . 'WHERE '.((!is_null($id_gcategory)) ? ' g.id_gcategory="'.(int)$id_gcategory.'" AND ' : '')
+			 . 'g.id_shop IN (0, '.(int)$id_shop);
+		$shop = new Shop($id_shop);
+		$root = Category::getRootCategory($id_lang, $shop);
+		foreach($ret as $k => $v){
+			$ret[$k]['breadcrumb'] = self::getPath($v['id_gcategory'], '', (int)$id_lang, (int)$id_shop, (int)$root->id_category);
+			if(empty($ret[$k]['breadcrumb']))$ret[$k]['breadcrumb']=$v['cat_name'];
+		}
+
+		return $ret;
+	}
+
+	public static function get($id_gcategory, $id_lang, $id_shop)
+	{
+		return self::gets($id_lang, $id_gcategory, $id_shop);
+	}
+
+	public static function getCategLang($id_gcategory, $id_shop)
+	{
+		$ret = Db::getInstance()->executeS('
+			SELECT g.*, gl.gcategory, gl.id_lang, cl.name as gcat_name
+			FROM '._DB_PREFIX_.'gshoppingflux g
+			LEFT JOIN '._DB_PREFIX_.'category_lang cl ON (cl.id_category = g.id_gcategory AND cl.id_shop='.(int)$id_shop.')
+			LEFT JOIN '._DB_PREFIX_.'gshoppingflux_lang gl ON (gl.id_gcategory = g.id_gcategory AND gl.id_shop='.(int)$id_shop.')
+			WHERE 1	'.((!is_null($id_gcategory)) ? ' AND g.id_gcategory = "'.(int)$id_gcategory.'"' : '').'
+			AND g.id_shop IN (0, '.(int)$id_shop
+		);
+
+		$gcateg = array();
+
+		foreach ($ret as $l => $line)
+		{
+			$gcateg[$line['id_lang']] = Tools::safeOutput($line['gcategory']);
+		}
+
+		$shop = new Shop($id_shop);
+		$root = Category::getRootCategory($this->context->cookie->id_lang, $shop);
+		$ret[0]['breadcrumb'] = self::getPath((int)$id_gcategory, '', $this->context->cookie->id_lang, $id_shop, $root->id_category);
+		if (empty($ret[0]['breadcrumb']) || $ret[0]['breadcrumb'] == ' > ')
+			$ret[0]['breadcrumb'] = $ret[0]['gcat_name'];
+
+		return array(
+			'breadcrumb' => $ret[0]['breadcrumb'],
+			'gcategory' => $gcateg,
+			'export' => $ret[0]['export'],
+			'condition' => $ret[0]['condition'],
+			'availability' => $ret[0]['availability'],
+			'gender' => $ret[0]['gender'],
+			'age_group' => $ret[0]['age_group'],
+			'color' => $ret[0]['color'],
+			'material' => $ret[0]['material'],
+			'pattern' => $ret[0]['pattern'],
+			'size' => $ret[0]['size']
+		);
+	}
+
+	public static function add($id_category, $gcateg, $export, $condition, $availability, $gender, $age_group, $color, $material, $pattern, $size, $id_shop)
+	{
+		if(empty($id_category))
+			return false;
+		if(!is_array($gcateg))
+			return false;
+
+		Db::getInstance()->insert('gshoppingflux', array(
+			'id_gcategory'=>(int)$id_category,
+			'export' => (int)$export,
+			'condition' => $condition,
+			'availability' => $availability,
+			'gender' => $gender,
+			'age_group' => $age_group,
+			'color' => $color,
+			'material' => $material,
+			'pattern' => $pattern,
+			'size' => $size,
+			'id_shop' => (int)$id_shop
+			)
+		);
+
+		foreach ($gcateg as $id_lang=>$categ)
+		Db::getInstance()->insert('gshoppingflux_lang', array(
+			'id_gcategory' => (int)$id_category,
+			'id_lang' => (int)$id_lang,
+			'id_shop' => (int)$id_shop,
+			'gcategory' => pSQL($categ)
+			)
+		);
+	}
+
+	public static function update($id_category, $gcateg, $export, $condition, $availability, $gender, $age_group, $color, $material, $pattern, $size, $id_shop)
+	{
+		if (empty($id_category))
+			return false;
+		if (!is_array($gcateg))
+			return false;
+
+		Db::getInstance()->update('gshoppingflux', array(
+				'export' => (int)$export,
+				'condition' => $condition,
+				'availability' => $availability,
+				'gender' => $gender,
+				'age_group' => $age_group,
+				'color' => $color,
+				'material' => $material,
+				'pattern' => $pattern,
+				'size' => $size,
+			),
+			'id_gcategory = '.(int)$id_category.' AND id_shop='.(int)$id_shop
+		);
+
+		foreach ($gcateg as $id_lang => $categ)
+			Db::getInstance()->update('gshoppingflux_lang', array(
+				'gcategory'=>pSQL($categ),
+			),
+			'id_gcategory = '.(int)$id_category.' AND id_lang = '.(int)$id_lang.' AND id_shop='.(int)$id_shop
+			);
+	}
+
+	public static function updateStatus($id_category, $id_shop, $export)
+	{
+		Db::getInstance()->update('gshoppingflux', array(
+			'export' => (int)$export,
+		),
+		'id_gcategory = '.(int)$id_category.' AND id_shop='.(int)$id_shop
+		);
+	}
+
+	public static function remove($id_gcategory, $id_shop)
+	{
+		Db::getInstance()->delete('gshoppingflux', 'id_gcategory = '.(int)$id_gcategory.' AND id_shop = '.(int)$id_shop);
+		Db::getInstance()->delete('gshoppingflux_lang', 'id_gcategory = '.(int)$id_gcategory);
+	}
+
+	public static function getPath($id_category, $path = '', $id_lang, $id_shop, $id_root)
+	{
+		$category = new Category((int)$id_category, (int)$id_lang, (int)$id_shop);
+
+		if (!Validate::isLoadedObject($category) || $category->id_category == $id_root  || $category->active == 0 )
+			return ($path);
+
+		$pipe = ' > ';
+
+		$category_name =  preg_replace('/^[0-9]+\./', '', $category->name);
+
+		if ($path != $category_name)
+			$path = $category_name.($path!='' ? $pipe.$path : '');
+
+		return self::getPath(intval($category->id_parent), $path, $id_lang, $id_shop, $id_root);
+	}
 }
-else
-{
-	@ini_set('display_errors', 'off');
-	define('_PS_DEBUG_SQL_', false);
-}
-
-define('_PS_DEBUG_PROFILING_', false);
-define('_PS_MODE_DEMO_', false);
-
-$currentDir = dirname(__FILE__);
-
-if (!defined('PHP_VERSION_ID'))
-{
-    $version = explode('.', PHP_VERSION);
-    define('PHP_VERSION_ID', ($version[0] * 10000 + $version[1] * 100 + $version[2]));
-}
-
-if (!defined('_PS_VERSION_') && (getenv('_PS_VERSION_') || getenv('REDIRECT__PS_VERSION_')))
-	define('_PS_VERSION_', getenv('_PS_VERSION_') ? getenv('_PS_VERSION_') : getenv('REDIRECT__PS_VERSION_'));
-
-if (!defined('_PS_HOST_MODE_') && (getenv('_PS_HOST_MODE_') || getenv('REDIRECT__PS_HOST_MODE_')))
-	define('_PS_HOST_MODE_', getenv('_PS_HOST_MODE_') ? getenv('_PS_HOST_MODE_') : getenv('REDIRECT__PS_HOST_MODE_'));
-
-if (!defined('_PS_ROOT_DIR_') && (getenv('_PS_ROOT_DIR_') || getenv('REDIRECT__PS_ROOT_DIR_')))
-	define('_PS_ROOT_DIR_', getenv('_PS_ROOT_DIR_') ? getenv('_PS_ROOT_DIR_') : getenv('REDIRECT__PS_ROOT_DIR_'));
-
-/* Directories */
-if (!defined('_PS_ROOT_DIR_'))
-	define('_PS_ROOT_DIR_', realpath($currentDir.'/..'));
-
-if (!defined('_PS_CORE_DIR_'))
-	define('_PS_CORE_DIR_', realpath($currentDir.'/..'));
-
-define('_PS_ALL_THEMES_DIR_',        _PS_ROOT_DIR_.'/themes/');
-/* BO THEMES */
-if (defined('_PS_ADMIN_DIR_'))
-	define('_PS_BO_ALL_THEMES_DIR_', _PS_ADMIN_DIR_.'/themes/');
-define('_PS_CACHE_DIR_',			 _PS_ROOT_DIR_.'/cache/');
-define('_PS_CONFIG_DIR_',			 _PS_CORE_DIR_.'/config/');
-define('_PS_CUSTOM_CONFIG_FILE_',	 _PS_CONFIG_DIR_.'settings_custom.inc.php');
-define('_PS_CLASS_DIR_',             _PS_CORE_DIR_.'/classes/');
-define('_PS_DOWNLOAD_DIR_',          _PS_ROOT_DIR_.'/download/');
-define('_PS_MAIL_DIR_',              _PS_CORE_DIR_.'/mails/');
-if (!defined('_PS_MODULE_DIR_'))
-	define('_PS_MODULE_DIR_',        _PS_ROOT_DIR_.'/modules/');
-if (!defined('_PS_OVERRIDE_DIR_'))
-    define('_PS_OVERRIDE_DIR_',          _PS_ROOT_DIR_.'/override/');
-define('_PS_PDF_DIR_',               _PS_CORE_DIR_.'/pdf/');
-define('_PS_TRANSLATIONS_DIR_',      _PS_ROOT_DIR_.'/translations/');
-define('_PS_UPLOAD_DIR_',			 _PS_ROOT_DIR_.'/upload/');
-
-define('_PS_CONTROLLER_DIR_',        _PS_CORE_DIR_.'/controllers/');
-define('_PS_ADMIN_CONTROLLER_DIR_',  _PS_CORE_DIR_.'/controllers/admin/');
-define('_PS_FRONT_CONTROLLER_DIR_',  _PS_CORE_DIR_.'/controllers/front/');
-
-define('_PS_TOOL_DIR_',              _PS_CORE_DIR_.'/tools/');
-define('_PS_GEOIP_DIR_',             _PS_TOOL_DIR_.'geoip/');
-define('_PS_GEOIP_CITY_FILE_',       'GeoLiteCity.dat');
-define('_PS_PEAR_XML_PARSER_PATH_',  _PS_TOOL_DIR_.'pear_xml_parser/');
-define('_PS_SWIFT_DIR_',             _PS_TOOL_DIR_.'swift/');
-define('_PS_TAASC_PATH_',            _PS_TOOL_DIR_.'taasc/');
-define('_PS_TCPDF_PATH_',            _PS_TOOL_DIR_.'tcpdf/');
-
-define('_PS_IMG_DIR_',               _PS_ROOT_DIR_.'/img/');
-
-if (!defined('_PS_HOST_MODE_'))
-	define('_PS_CORE_IMG_DIR_',      _PS_CORE_DIR_.'/img/');
-else
-	define('_PS_CORE_IMG_DIR_',      _PS_ROOT_DIR_.'/img/');
-
-define('_PS_CAT_IMG_DIR_',           _PS_IMG_DIR_.'c/');
-define('_PS_COL_IMG_DIR_',			 _PS_IMG_DIR_.'co/');
-define('_PS_EMPLOYEE_IMG_DIR_',      _PS_IMG_DIR_.'e/');
-define('_PS_GENDERS_DIR_',           _PS_IMG_DIR_.'genders/');
-define('_PS_LANG_IMG_DIR_',          _PS_IMG_DIR_.'l/');
-define('_PS_MANU_IMG_DIR_',          _PS_IMG_DIR_.'m/');
-define('_PS_ORDER_STATE_IMG_DIR_',   _PS_IMG_DIR_.'os/');
-define('_PS_PROD_IMG_DIR_',          _PS_IMG_DIR_.'p/');
-define('_PS_SCENE_IMG_DIR_',         _PS_IMG_DIR_.'scenes/');
-define('_PS_SCENE_THUMB_IMG_DIR_',   _PS_IMG_DIR_.'scenes/thumbs/');
-define('_PS_SHIP_IMG_DIR_',          _PS_IMG_DIR_.'s/');
-define('_PS_STORE_IMG_DIR_',		 _PS_IMG_DIR_.'st/');
-define('_PS_SUPP_IMG_DIR_',          _PS_IMG_DIR_.'su/');
-define('_PS_TMP_IMG_DIR_',           _PS_IMG_DIR_.'tmp/');
-
-/* settings php */
-define('_PS_TRANS_PATTERN_',            '(.*[^\\\\])');
-define('_PS_MIN_TIME_GENERATE_PASSWD_', '360');
-if (!defined('_PS_MAGIC_QUOTES_GPC_'))
-	define('_PS_MAGIC_QUOTES_GPC_',         get_magic_quotes_gpc());
-
-define('_CAN_LOAD_FILES_', 1);
-
-/* Order statuses
-Order statuses have been moved into config.inc.php file for backward compatibility reasons */
-
-/* Tax behavior */
-define('PS_PRODUCT_TAX', 0);
-define('PS_STATE_TAX', 1);
-define('PS_BOTH_TAX', 2);
-
-define('PS_TAX_EXC', 1);
-define('PS_TAX_INC', 0);
-
-define('PS_ORDER_PROCESS_STANDARD', 0);
-define('PS_ORDER_PROCESS_OPC', 1);
-
-define('PS_ROUND_UP', 0);
-define('PS_ROUND_DOWN', 1);
-define('PS_ROUND_HALF_UP', 2);
-define('PS_ROUND_HALF_DOWN', 3);
-define('PS_ROUND_HALF_EVEN', 4);
-define('PS_ROUND_HALF_ODD', 5);
-
-/* Backward compatibility */
-define('PS_ROUND_HALF', PS_ROUND_HALF_UP);
-
-/* Registration behavior */
-define('PS_REGISTRATION_PROCESS_STANDARD', 0);
-define('PS_REGISTRATION_PROCESS_AIO', 1);
-
-/* Carrier::getCarriers() filter */
-// these defines are DEPRECATED since 1.4.5 version
-define('PS_CARRIERS_ONLY', 1);
-define('CARRIERS_MODULE', 2);
-define('CARRIERS_MODULE_NEED_RANGE', 3);
-define('PS_CARRIERS_AND_CARRIER_MODULES_NEED_RANGE', 4);
-define('ALL_CARRIERS', 5);
-
-/* SQL Replication management */
-define('_PS_USE_SQL_SLAVE_', 0);
-
-/* PS Technical configuration */
-define('_PS_ADMIN_PROFILE_', 1);
-
-/* Stock Movement */
-define('_STOCK_MOVEMENT_ORDER_REASON_', 3);
-define('_STOCK_MOVEMENT_MISSING_REASON_', 4);
-
-/**
- * @deprecated 1.5.0.1
- * @see Configuration::get('PS_CUSTOMER_GROUP')
- */
-define('_PS_DEFAULT_CUSTOMER_GROUP_', 3);
-
-define('_PS_CACHEFS_DIRECTORY_', _PS_ROOT_DIR_.'/cache/cachefs/');
-
-/* Geolocation */
-define('_PS_GEOLOCATION_NO_CATALOG_', 0);
-define('_PS_GEOLOCATION_NO_ORDER_', 1);
-
-define('MIN_PASSWD_LENGTH', 8);
-
-define('_PS_SMARTY_NO_COMPILE_', 0);
-define('_PS_SMARTY_CHECK_COMPILE_', 1);
-define('_PS_SMARTY_FORCE_COMPILE_', 2);
-
-define('_PS_SMARTY_CONSOLE_CLOSE_', 0);
-define('_PS_SMARTY_CONSOLE_OPEN_BY_URL_', 1);
-define('_PS_SMARTY_CONSOLE_OPEN_', 2);
-
-define('_PS_JQUERY_VERSION_', '1.11.0');
