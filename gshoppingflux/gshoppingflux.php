@@ -1476,14 +1476,13 @@ class GShoppingFlux extends Module
 	{
 		// Get categories' export values, or it's parents ones :
 		// Matching Google category, condition, availability, gender, age_group...
-		$ret  = Db::getInstance()->executeS('
-			SELECT k.*, g.*, gl.*
-			FROM '._DB_PREFIX_.'category k
-			LEFT JOIN '._DB_PREFIX_.'gshoppingflux g ON (g.id_gcategory=k.id_category AND g.id_shop='.$id_shop.')
-			LEFT JOIN '._DB_PREFIX_.'gshoppingflux_lang gl ON (gl.id_gcategory=k.id_category AND gl.id_lang = '.(int)$id_lang.' AND gl.id_shop='.(int)$id_shop.')
-			WHERE g.id_shop = '.(int)$id_shop
-		);
+		$sql = 'SELECT k.*, g.*, gl.*
+		FROM '._DB_PREFIX_.'category k
+		LEFT JOIN '._DB_PREFIX_.'gshoppingflux g ON (g.id_gcategory=k.id_category AND g.id_shop='.$id_shop.')
+		LEFT JOIN '._DB_PREFIX_.'gshoppingflux_lang gl ON (gl.id_gcategory=k.id_category AND gl.id_lang = '.(int)$id_lang.' AND gl.id_shop='.(int)$id_shop.')
+		WHERE g.id_shop = '.(int)$id_shop;
 
+		$ret  = Db::getInstance()->executeS($sql);
 		$shop = new Shop($id_shop);
 		$root = Category::getRootCategory($id_lang, $shop);
 
