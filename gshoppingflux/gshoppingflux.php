@@ -72,7 +72,7 @@ class GShoppingFlux extends Module
 					|| !Configuration::updateValue('GS_SHIPPING_COUNTRY', 'UK', false, (int)$shop_group_id, (int)$shop_id)
 					|| !Configuration::updateValue('GS_IMG_TYPE', 'large_default', false, (int)$shop_group_id, (int)$shop_id)
 					|| !Configuration::updateValue('GS_MPN_TYPE', 'reference', false, (int)$shop_group_id, (int)$shop_id
-					|| !Configuration::updateValue('GS_GENDER', '', false, (int)$shop_group_id, (int)$shop_id) 
+					|| !Configuration::updateValue('GS_GENDER', '', false, (int)$shop_group_id, (int)$shop_id)
 					|| !Configuration::updateValue('GS_AGE_GROUP', '', false, (int)$shop_group_id, (int)$shop_id)
 					|| !Configuration::updateValue('GS_ATTRIBUTES', '0', false, (int)$shop_group_id, (int)$shop_id)
 					|| !Configuration::updateValue('GS_COLOR', '', false, (int)$shop_group_id, (int)$shop_id)
@@ -140,7 +140,7 @@ class GShoppingFlux extends Module
 			FROM '._DB_PREFIX_.'category c
 			INNER JOIN `'._DB_PREFIX_.'category_shop` cs ON (cs.id_category=c.id_category AND cs.id_shop='.(int)$id_shop.')
 			ORDER BY c.id_category ASC, c.level_depth ASC, cs.position ASC;'
-	);
+		);
 
 		foreach ($categs as $kc => $cat) {
 			foreach ($languages as $key => $lang)
@@ -218,12 +218,13 @@ class GShoppingFlux extends Module
 			SELECT *
 			FROM '._DB_PREFIX_.'gshoppingflux
 			WHERE id_shop = '.(int)$params['old_id_shop']
-	);
+		);
 
 		foreach ($gcategories as $id => $gcateg) {
-			Db::getInstance()->execute('
-				INSERT IGNORE INTO '._DB_PREFIX_.'gshoppingflux (id_gcategory, id_shop)
-				VALUES (null, '.(int)$params['new_id_shop'].')');
+			Db::getInstance()->insert('gshoppingflux', array(
+			    'id_gcategory' => null,
+			    'id_shop'      => (int)$params['new_id_shop'],
+			));
 
 			$gcategories[$id]['new_id_gcategory'] = Db::getInstance()->Insert_ID();
 		}
@@ -235,9 +236,12 @@ class GShoppingFlux extends Module
 					WHERE id_gcategory = '.(int)$gcateg['id_gcategory'].' AND id_shop = '.(int)$params['old_id_shop']);
 
 			foreach ($lang as $l)
-				Db::getInstance()->execute('
-					INSERT IGNORE INTO '._DB_PREFIX_.'gshoppingflux_lang (id_gcategory, id_lang, id_shop, gcategory)
-					VALUES ('.(int)$gcateg['new_id_gcategory'].', '.(int)$l['id_lang'].', '.(int)$params['new_id_shop'].', '.(int)$l['gcategory'].')');
+				Db::getInstance()->insert('gshoppingflux_lang', array(
+						'id_gcategory' => (int)$gcateg['new_id_gcategory'],
+						'id_lang'      => (int)$l['id_lang'],
+						'id_shop'	=> (int)$params['new_id_shop'],
+						'gcategory' => (int)$l['gcategory'],
+				));
 		}
 	}
 
@@ -425,7 +429,7 @@ class GShoppingFlux extends Module
 		$helper = new HelperForm();
 		$helper->show_toolbar = false;
 		$helper->table = $this->table;
-		
+
 		$lang = new Language((int)Configuration::get('PS_LANG_DEFAULT'));
 		$helper->default_form_language = $lang->id;
 		$helper->allow_employee_form_lang = Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG') ? Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG') : 0;
@@ -1154,7 +1158,6 @@ class GShoppingFlux extends Module
 			$gcatsize_edit = $gcateg['size'];
 			$gcategory_edit = $gcateg['gcategory'];
 			$gcatlabel_edit = $gcateg['breadcrumb'];
-
 		}
 
 		$fields_values = array(
@@ -1169,7 +1172,6 @@ class GShoppingFlux extends Module
 			'material[]' => explode(';', Tools::getValue('material', isset($gcatmaterial_edit) ? $gcatmaterial_edit : '')),
 			'pattern[]' => explode(';', Tools::getValue('pattern', isset($gcatpattern_edit) ? $gcatpattern_edit : '')),
 			'size[]' => explode(';', Tools::getValue('size', isset($gcatsize_edit) ? $gcatsize_edit : ''))
-
 		);
 
 		if (Tools::getValue('submitAddmodule')) {
@@ -1293,13 +1295,13 @@ class GShoppingFlux extends Module
 			$output .= '<a href="'.$get_file_url.'">'.$get_file_url.'</a> <br /> ';
 		}
 		$info_cron = '<a href="'.$this->uri.'modules/'.$this->name.'/cron.php" target="_blank">'.$this->uri.'modules/'.$this->name.'/cron.php</a>';
-		
+
 		if (count($languages) > 1)
 			$files_desc = $this->l('Configure these URLs in your Google Merchant Center account.');
 
 		else
 			$files_desc = $this->l('Configure this URL in your Google Merchant Center account.');
-		
+
 		$cron_desc = $this->l('Install a CRON task to update the feed frequently.');
 
 		if (count($shops) > 1)
@@ -1478,7 +1480,8 @@ class GShoppingFlux extends Module
 			FROM '._DB_PREFIX_.'category k
 			LEFT JOIN '._DB_PREFIX_.'gshoppingflux g ON (g.id_gcategory=k.id_category AND g.id_shop='.$id_shop.')
 			LEFT JOIN '._DB_PREFIX_.'gshoppingflux_lang gl ON (gl.id_gcategory=k.id_category AND gl.id_lang = '.(int)$id_lang.' AND gl.id_shop='.(int)$id_shop.')
-			WHERE g.id_shop = '.(int)$id_shop);
+			WHERE g.id_shop = '.(int)$id_shop
+		);
 		$shop = new Shop($id_shop);
 		$root = Category::getRootCategory($id_lang, $shop);
 
