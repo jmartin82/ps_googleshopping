@@ -43,10 +43,7 @@ class GShoppingFlux extends Module
 		$this->description = $this->l('Export your products to Google Merchant Center, easily.');
 
 		$this->need_instance = 0;
-		$this->ps_versions_compliancy = array(
-			'min' => '1.5',
-			'max' => '1.7'
-		);
+		$this->ps_versions_compliancy = array('min' => '1.5.0.0', 'max' => _PS_VERSION_);
 
 		$this->uri = ToolsCore::getCurrentUrlProtocolPrefix().$this->context->shop->domain_ssl.$this->context->shop->physical_uri;
 		$this->categories_values = array();
@@ -446,7 +443,7 @@ class GShoppingFlux extends Module
 			'languages' => $this->context->controller->getLanguages(),
 			'id_language' => $this->context->language->id
 		);
-		$shops = Shop::getShops(true, null, true);
+
 		$id_lang = $this->context->language->id;
 		$id_shop = $this->context->shop->id;
 		$img_types = ImageType::getImagesTypes('products');
@@ -1287,7 +1284,7 @@ class GShoppingFlux extends Module
 		$shops = Shop::getShops(true, null, true);
 		$output = '';
 
-		foreach ($languages as $i => $lang) {
+		foreach ($languages as $lang) {
 			if (Configuration::get('GS_GEN_FILE_IN_ROOT') == 1) {
 				$get_file_url = $this->uri.$this->_getOutputFileName($lang['iso_code'], $this->context->shop->id);
 			}
@@ -1467,7 +1464,7 @@ class GShoppingFlux extends Module
 
 		foreach ($tabcat as $k => $c)
 			if (!empty($c['children']))
-				foreach ($c['children'] as $i => $j)
+				foreach ($c['children'] as $j)
 					$catlist = $this->makeCatTree($j['id_category'], $catlist);
 
 		return $catlist;
@@ -1794,7 +1791,7 @@ class GShoppingFlux extends Module
 		$product_link = $this->context->link->getProductLink((int)($product['id_product']), $product['link_rewrite'], $cat_link_rew, $product['ean13'], (int)($product['id_lang']), $id_shop, $combination, true);
 
 		// Product name
-		$title_crop = Tools::ucfirst(mb_strtolower($product['name'], self::CHARSET));
+		$title_crop = $product['name'];
 
 		//  Product color attribute, if any
 		if (!empty($product['color']))
@@ -1954,7 +1951,7 @@ class GShoppingFlux extends Module
 		$product_features = $this->getProductFeatures($product['id_product'], $id_lang, $id_shop);
 		$product['gender'] = $this->categories_values[$product['category_default']]['gcat_gender'];
 		$product['age_group'] = $this->categories_values[$product['category_default']]['gcat_age_group'];
-		foreach ($product_features as $f => $feature) {
+		foreach ($product_features as $feature) {
 			switch ($feature['id_feature']) {
 				case $this->module_conf['gender']:
 					$product['gender'] = $feature['value'];
