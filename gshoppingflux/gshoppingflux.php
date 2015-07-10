@@ -54,9 +54,12 @@ class GShoppingFlux extends Module
 
 	public function install($delete_params = true)
 	{
-		if (!parent::install() || !$this->registerHook('actionObjectCategoryAddAfter') || !$this->registerHook('actionObjectCategoryDeleteAfter') || !$this->registerHook('actionShopDataDuplication') || !$this->installDb()) {
+		if (!parent::install()
+			|| !$this->registerHook('actionObjectCategoryAddAfter')
+			|| !$this->registerHook('actionObjectCategoryDeleteAfter')
+			|| !$this->registerHook('actionShopDataDuplication')
+			|| !$this->installDb())
 			return false;
-		}
 
 		$shops = Shop::getShops(true, null, true);
 		foreach ($shops as $shop_id) {
@@ -71,7 +74,7 @@ class GShoppingFlux extends Module
 					|| !Configuration::updateValue('GS_SHIPPING_PRICE', '0.00', false, (int)$shop_group_id, (int)$shop_id)
 					|| !Configuration::updateValue('GS_SHIPPING_COUNTRY', 'UK', false, (int)$shop_group_id, (int)$shop_id)
 					|| !Configuration::updateValue('GS_IMG_TYPE', 'large_default', false, (int)$shop_group_id, (int)$shop_id)
-					|| !Configuration::updateValue('GS_MPN_TYPE', 'reference', false, (int)$shop_group_id, (int)$shop_id
+					|| !Configuration::updateValue('GS_MPN_TYPE', 'reference', false, (int)$shop_group_id, (int)$shop_id)
 					|| !Configuration::updateValue('GS_GENDER', '', false, (int)$shop_group_id, (int)$shop_id)
 					|| !Configuration::updateValue('GS_AGE_GROUP', '', false, (int)$shop_group_id, (int)$shop_id)
 					|| !Configuration::updateValue('GS_ATTRIBUTES', '0', false, (int)$shop_group_id, (int)$shop_id)
@@ -1124,7 +1127,8 @@ class GShoppingFlux extends Module
 		return $helper->generateForm(
 			array(
 				$fields_form
-			));
+			)
+		);
 	}
 
 	public function getGCategFieldsValues()
@@ -1351,7 +1355,7 @@ class GShoppingFlux extends Module
 			die(Tools::displayError());
 
 		if (isset($groups) && Group::isFeatureActive() && !is_array($groups))
-			$groups = (array) $groups;
+			$groups = (array)$groups;
 
 		$cache_id = 'Category::getNestedCategories_'.md5((int)$shop_id.(int)$root_category.(int)$id_lang.(int)$active.(int)$active.(isset($groups) && Group::isFeatureActive() ? implode('', $groups) : ''));
 
@@ -1460,13 +1464,10 @@ class GShoppingFlux extends Module
 			$catlist = array_merge($catlist, $tabcat);
 		}
 
-		foreach ($tabcat as $k => $c) {
-			if (!empty($c['children'])) {
-				foreach ($c['children'] as $i => $j) {
+		foreach ($tabcat as $k => $c)
+			if (!empty($c['children']))
+				foreach ($c['children'] as $i => $j)
 					$catlist = $this->makeCatTree($j['id_category'], $catlist);
-				}
-			}
-		}
 
 		return $catlist;
 	}
@@ -1482,6 +1483,7 @@ class GShoppingFlux extends Module
 			LEFT JOIN '._DB_PREFIX_.'gshoppingflux_lang gl ON (gl.id_gcategory=k.id_category AND gl.id_lang = '.(int)$id_lang.' AND gl.id_shop='.(int)$id_shop.')
 			WHERE g.id_shop = '.(int)$id_shop
 		);
+
 		$shop = new Shop($id_shop);
 		$root = Category::getRootCategory($id_lang, $shop);
 
@@ -1575,7 +1577,7 @@ class GShoppingFlux extends Module
 			FROM '._DB_PREFIX_.'group g
 			LEFT JOIN '._DB_PREFIX_.'group_shop gs ON (g.id_group = gs.id_group)
 			WHERE g.id_group=1 AND gs.id_shop = '.(int)$id_shop);
-		return ($ret[0]['price_display_method']);
+		return $ret[0]['price_display_method'];
 	}
 
 	public function getShopDescription($id_lang, $id_shop)
@@ -1587,7 +1589,7 @@ class GShoppingFlux extends Module
 			WHERE m.page="index"
 				AND ml.id_shop = '.(int)$id_shop.'
 				AND ml.id_lang = '.(int)$id_lang);
-		return ($ret[0]['description']);
+		return $ret[0]['description'];
 	}
 
 	public function generateAllShopsFileList()
