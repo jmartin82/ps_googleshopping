@@ -1374,7 +1374,8 @@ class GShoppingFlux extends Module
 				'.(!$id_lang || (isset($groups) && Group::isFeatureActive()) ? ' GROUP BY c.`id_category`' : '').'
 				'.($sql_sort != '' ? $sql_sort : ' ORDER BY c.`level_depth` ASC').'
 				'.($sql_sort == '' && $use_shop_restriction ? ', cs.`position` ASC' : '').'
-				'.($sql_limit != '' ? $sql_limit : ''));
+				'.($sql_limit != '' ? $sql_limit : '')
+			);
 
 			$attributes = $this->getShopAttributes($this->context->language->id, $this->context->shop->id);
 
@@ -1631,8 +1632,6 @@ class GShoppingFlux extends Module
 
 		else
 			$generate_file_path = dirname(__FILE__).'/file_exports/'.$this->_getOutputFileName($lang['iso_code'], $id_shop);
-
-		$meta = Meta::getMetaByPage('index', $id_lang);
 
 		// Google Shopping XML
 		$xml = '<?xml version="1.0" encoding="'.self::CHARSET.'" ?>'."\n";
