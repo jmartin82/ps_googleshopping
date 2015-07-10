@@ -20,11 +20,9 @@
 
 class GCategories
 {
-	
 	public static function gets($id_lang, $id_gcategory = null, $id_shop)
 	{
-		
-		$sql = 'SELECT g.*, gl.gcategory, s.name as shop_name, cl.name as cat_name '
+		Db::getInstance()->executeS('SELECT g.*, gl.gcategory, s.name as shop_name, cl.name as cat_name '
 			 . 'FROM '._DB_PREFIX_.'gshoppingflux g '
 			 . 'LEFT JOIN '._DB_PREFIX_.'category c ON (c.id_category=g.id_gcategory AND c.id_shop_default=g.id_shop) '
 			 . 'LEFT JOIN '._DB_PREFIX_.'category_shop cs ON (cs.id_category=g.id_gcategory AND cs.id_shop=g.id_shop) '
@@ -32,9 +30,7 @@ class GCategories
 			 . 'LEFT JOIN '._DB_PREFIX_.'shop s ON (s.id_shop=g.id_shop) '
 			 . 'LEFT JOIN '._DB_PREFIX_.'category_lang cl ON (cl.id_category=g.id_gcategory AND cl.id_lang='.(int)$id_lang.' AND cl.id_shop=g.id_shop) '
 			 . 'WHERE '.((!is_null($id_gcategory)) ? ' g.id_gcategory="'.(int)$id_gcategory.'" AND ' : '')
-			 . 'g.id_shop IN (0, '.(int)$id_shop.');';
-			 
-		$ret = Db::getInstance()->executeS($sql);		
+			 . 'g.id_shop IN (0, '.(int)$id_shop);
 		$shop = new Shop($id_shop);		
 		$root = Category::getRootCategory($id_lang, $shop);
 		foreach($ret as $k => $v){
@@ -52,8 +48,6 @@ class GCategories
 
 	public static function getCategLang($id_gcategory, $id_shop)
 	{
-		global $cookie;
-		
 		$ret = Db::getInstance()->executeS('
 			SELECT g.*, gl.gcategory, gl.id_lang, cl.name as gcat_name
 			FROM '._DB_PREFIX_.'gshoppingflux g
@@ -71,12 +65,24 @@ class GCategories
 		}
 			
 		$shop = new Shop($id_shop);		
-		$root = Category::getRootCategory($cookie->id_lang, $shop);
-		$ret[0]['breadcrumb'] = self::getPath((int)$id_gcategory, '', $cookie->id_lang, $id_shop, $root->id_category);
-		if(empty($ret[0]['breadcrumb']) || $ret[0]['breadcrumb']==' > ')$ret[0]['breadcrumb']=$ret[0]['gcat_name'];
+		$root = Category::getRootCategory($this->context->cookie->id_lang, $shop);
+		$ret[0]['breadcrumb'] = self::getPath((int)$id_gcategory, '', $this->context->cookie->id_lang, $id_shop, $root->id_category);
+		if (empty($ret[0]['breadcrumb']) || $ret[0]['breadcrumb'] == ' > ')
+			$ret[0]['breadcrumb'] = $ret[0]['gcat_name'];
 
-		return array('breadcrumb' => $ret[0]['breadcrumb'], 'gcategory' => $gcateg, 'export' => $ret[0]['export'], 'condition' => $ret[0]['condition'], 'availability' => $ret[0]['availability'], 'gender' => $ret[0]['gender'], 'age_group' => $ret[0]['age_group'], 'color' => $ret[0]['color'], 'material' => $ret[0]['material'], 'pattern' => $ret[0]['pattern'], 'size' => $ret[0]['size']);
-		
+		return array(
+			'breadcrumb' => $ret[0]['breadcrumb'], 
+			'gcategory' => $gcateg, 
+			'export' => $ret[0]['export'], 
+			'condition' => $ret[0]['condition'], 
+			'availability' => $ret[0]['availability'], 
+			'gender' => $ret[0]['gender'], 
+			'age_group' => $ret[0]['age_group'], 
+			'color' => $ret[0]['color'], 
+			'material' => $ret[0]['material'], 
+			'pattern' => $ret[0]['pattern'], 
+			'size' => $ret[0]['size']
+		);
 	}
 
 	public static function add($id_category, $gcateg, $export, $condition, $availability, $gender, $age_group, $color, $material, $pattern, $size, $id_shop)
@@ -86,46 +92,39 @@ class GCategories
 		if(!is_array($gcateg))
 			return false;
 		
-		Db::getInstance()->insert(
-			'gshoppingflux',
-			array(
-				'id_gcategory'=>(int)$id_category,
-				'export' => (int)$export,
-				'condition' => $condition,
-				'availability' => $availability,
-				'gender' => $gender,
-				'age_group' => $age_group,
-				'color' => $color,
-				'material' => $material,
-				'pattern' => $pattern,
-				'size' => $size,
-				'id_shop' => (int)$id_shop
+		Db::getInstance()->insert('gshoppingflux', array(
+			'id_gcategory'=>(int)$id_category,
+			'export' => (int)$export,
+			'condition' => $condition,
+			'availability' => $availability,
+			'gender' => $gender,
+			'age_group' => $age_group,
+			'color' => $color,
+			'material' => $material,
+			'pattern' => $pattern,
+			'size' => $size,
+			'id_shop' => (int)$id_shop
 			)
 		);
 
 		foreach ($gcateg as $id_lang=>$categ)
-		Db::getInstance()->insert(
-			'gshoppingflux_lang',
-			array(
-				'id_gcategory'=>(int)$id_category,
-
-				'id_lang'=>(int)$id_lang,
-				'id_shop'=>(int)$id_shop,
-				'gcategory'=>pSQL($categ)
+		Db::getInstance()->insert('gshoppingflux_lang', array(
+			'id_gcategory' => (int)$id_category,
+			'id_lang' => (int)$id_lang,
+			'id_shop' => (int)$id_shop,
+			'gcategory' => pSQL($categ)
 			)
 		);
 	}
 
 	public static function update($id_category, $gcateg, $export, $condition, $availability, $gender, $age_group, $color, $material, $pattern, $size, $id_shop)
 	{
-		if(empty($id_category))
+		if (empty($id_category))
 			return false;
-		if(!is_array($gcateg))
+		if (!is_array($gcateg))
 			return false;		
 		
-		Db::getInstance()->update(
-			'gshoppingflux',
-			array(
+		Db::getInstance()->update('gshoppingflux', array(
 				'export' => (int)$export,
 				'condition' => $condition,
 				'availability' => $availability,
@@ -140,23 +139,19 @@ class GCategories
 		);
 
 		foreach ($gcateg as $id_lang => $categ)
-			Db::getInstance()->update(
-				'gshoppingflux_lang',
-				array(
-					'gcategory'=>pSQL($categ),
-				),
-				'id_gcategory = '.(int)$id_category.' AND id_lang = '.(int)$id_lang.' AND id_shop='.(int)$id_shop
+			Db::getInstance()->update('gshoppingflux_lang', array(
+				'gcategory'=>pSQL($categ),
+			),
+			'id_gcategory = '.(int)$id_category.' AND id_lang = '.(int)$id_lang.' AND id_shop='.(int)$id_shop
 			);
 	}
 
 	public static function updateStatus($id_category, $id_shop, $export)
 	{		
-		Db::getInstance()->update(
-			'gshoppingflux',
-			array(
-				'export' => (int)$export,
-			),
-			'id_gcategory = '.(int)$id_category.' AND id_shop='.(int)$id_shop
+		Db::getInstance()->update('gshoppingflux', array(
+			'export' => (int)$export,
+		),
+		'id_gcategory = '.(int)$id_category.' AND id_shop='.(int)$id_shop
 		);
 	}
 
@@ -168,7 +163,7 @@ class GCategories
 	
 	public static function getPath($id_category, $path = '', $id_lang, $id_shop, $id_root)
 	{	
-		$category = new Category(intval($id_category), intval($id_lang), intval($id_shop));
+		$category = new Category((int)$id_category, (int)$id_lang, (int)$id_shop);
 		
 		if (!Validate::isLoadedObject($category) || $category->id_category == $id_root  || $category->active == 0 )
 			return ($path);
@@ -182,5 +177,4 @@ class GCategories
 		
 		return self::getPath(intval($category->id_parent), $path, $id_lang, $id_shop, $id_root);
 	}
-
 }
