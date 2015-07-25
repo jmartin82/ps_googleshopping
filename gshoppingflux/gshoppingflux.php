@@ -1646,9 +1646,6 @@ class GShoppingFlux extends Module
 			else 
 				$product['pid'] = $product['id_product'];
 			$product['gid'] = $product['pid'];
-			
-			$xml_googleshopping = $this->getItemXML($product, $lang, $id_shop);
-			fwrite($googleshoppingfile, $xml_googleshopping);
 				
 			if(count($attributeCombinations)>0 && $this->module_conf['export_attributes']==1){
 				$attr = array();
@@ -1696,6 +1693,9 @@ class GShoppingFlux extends Module
 					$product['size'] = '';
 				}
 						
+			} else {
+				$xml_googleshopping = $this->getItemXML($product, $lang, $id_shop);
+				fwrite($googleshoppingfile, $xml_googleshopping);	
 			}
         }
         $xml = '</channel>'."\n".'</rss>';
