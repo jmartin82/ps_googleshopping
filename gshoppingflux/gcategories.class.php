@@ -180,7 +180,7 @@ class GCategories
 		if ($path != $category_name)
 			$path = $category_name.($path!='' ? $pipe.$path : '');
 		
-		return self::getPath(intval($category->id_parent), $path, $id_lang, $id_shop, $id_root);
+		return self::getPath((int)$category->id_parent, $path, (int)$id_lang, (int)$id_shop, (int)$id_root);
 	}
 
 }
