@@ -1994,7 +1994,7 @@ class GShoppingFlux extends Module
 
 		// Product attributes combination groups
 		if ($combination && !empty($product['item_group_id']))
-			$xml_googleshopping .= '<g:item_group_id><![CDATA['.$product['item_group_id'].']]></g:item_group_id>'."\n";
+			$xml_googleshopping .= '<g:size>'.$product['item_group_id'].'</g:item_group_id>'."\n";
 
 		// Product color attribute, or category color attribute, or parent's one
 		if (!empty($product['color']))
@@ -2004,11 +2004,11 @@ class GShoppingFlux extends Module
 		if (!empty($product['material']))
 			$xml_googleshopping .= '<g:material><![CDATA['.$product['material'].']]></g:material>'."\n";
 
-		// Product color attribute, or category color attribute, or parent's one
+		// Product pattern attribute, or category pattern attribute, or parent's one
 		if (!empty($product['pattern']))
 			$xml_googleshopping .= '<g:pattern><![CDATA['.$product['pattern'].']]></g:pattern>'."\n";
 
-		// Product material attribute, or category material attribute, or parent's one
+		// Product size attribute, or category size attribute, or parent's one
 		if (!empty($product['size']))
 			$xml_googleshopping .= '<g:size><![CDATA['.$product['size'].']]></g:size>'."\n";
 
