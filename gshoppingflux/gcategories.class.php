@@ -30,9 +30,11 @@ class GCategories
 			 . 'LEFT JOIN '._DB_PREFIX_.'shop s ON (s.id_shop=g.id_shop) '
 			 . 'LEFT JOIN '._DB_PREFIX_.'category_lang cl ON (cl.id_category=g.id_gcategory AND cl.id_lang='.(int)$id_lang.' AND cl.id_shop=g.id_shop) '
 			 . 'WHERE '.((!is_null($id_gcategory)) ? ' g.id_gcategory="'.(int)$id_gcategory.'" AND ' : '')
-			 . 'g.id_shop IN (0, '.(int)$id_shop);
+			 . 'g.id_shop IN (0, '.(int)$id_shop.');');
+			 
 		$shop = new Shop($id_shop);
 		$root = Category::getRootCategory($id_lang, $shop);
+		
 		foreach($ret as $k => $v){
 			$ret[$k]['breadcrumb'] = self::getPath($v['id_gcategory'], '', (int)$id_lang, (int)$id_shop, (int)$root->id_category);
 			if(empty($ret[$k]['breadcrumb']))$ret[$k]['breadcrumb']=$v['cat_name'];
@@ -46,7 +48,7 @@ class GCategories
 		return self::gets($id_lang, $id_gcategory, $id_shop);
 	}
 
-	public static function getCategLang($id_gcategory, $id_shop)
+	public static function getCategLang($id_gcategory, $id_shop, $id_lang)
 	{
 		$ret = Db::getInstance()->executeS('
 			SELECT g.*, gl.gcategory, gl.id_lang, cl.name as gcat_name
@@ -54,7 +56,7 @@ class GCategories
 			LEFT JOIN '._DB_PREFIX_.'category_lang cl ON (cl.id_category = g.id_gcategory AND cl.id_shop='.(int)$id_shop.')
 			LEFT JOIN '._DB_PREFIX_.'gshoppingflux_lang gl ON (gl.id_gcategory = g.id_gcategory AND gl.id_shop='.(int)$id_shop.')
 			WHERE 1	'.((!is_null($id_gcategory)) ? ' AND g.id_gcategory = "'.(int)$id_gcategory.'"' : '').'
-			AND g.id_shop IN (0, '.(int)$id_shop
+			AND g.id_shop IN (0, '.(int)$id_shop.');'
 		);
 
 		$gcateg = array();
@@ -63,10 +65,10 @@ class GCategories
 		{
 			$gcateg[$line['id_lang']] = Tools::safeOutput($line['gcategory']);
 		}
-
+		
 		$shop = new Shop($id_shop);
-		$root = Category::getRootCategory($this->context->cookie->id_lang, $shop);
-		$ret[0]['breadcrumb'] = self::getPath((int)$id_gcategory, '', $this->context->cookie->id_lang, $id_shop, $root->id_category);
+		$root = Category::getRootCategory($id_lang, $shop);
+		$ret[0]['breadcrumb'] = self::getPath((int)$id_gcategory, '', $id_lang, $id_shop, $root->id_category);
 		if (empty($ret[0]['breadcrumb']) || $ret[0]['breadcrumb'] == ' > ')
 			$ret[0]['breadcrumb'] = $ret[0]['gcat_name'];
 

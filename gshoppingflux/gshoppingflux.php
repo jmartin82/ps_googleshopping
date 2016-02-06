@@ -91,10 +91,10 @@ class GShoppingFlux extends Module
 		}
 
 		// Get generation file route
-		if (!is_dir(dirname(__FILE__).'/file_exports'))
-			@mkdir(dirname(__FILE__).'/file_exports', 0755, true);
+		if (!is_dir(dirname(__FILE__).'/export'))
+			@mkdir(dirname(__FILE__).'/export', 0755, true);
 
-		@chmod(dirname(__FILE__).'/file_exports', 0755);
+		@chmod(dirname(__FILE__).'/export', 0755);
 
 		return true;
 	}
@@ -130,10 +130,11 @@ class GShoppingFlux extends Module
 	public function initDb($id_shop)
 	{
 		$languages = $this->context->controller->getLanguages();
+		$id_lang = $this->context->language->id;
 		$str = array();
 
 		$shop = new Shop($id_shop);
-		$root = Category::getRootCategory($this->context->language->id, $shop);
+		$root = Category::getRootCategory($id_lang, $shop);
 
 		$categs = Db::getInstance()->executeS('
 			SELECT c.id_category, c.id_parent, c.active
@@ -141,10 +142,13 @@ class GShoppingFlux extends Module
 			INNER JOIN `'._DB_PREFIX_.'category_shop` cs ON (cs.id_category=c.id_category AND cs.id_shop='.(int)$id_shop.')
 			ORDER BY c.id_category ASC, c.level_depth ASC, cs.position ASC;'
 		);
-
-		foreach ($categs as $kc => $cat) {
-			foreach ($languages as $key => $lang)
+		
+		
+		foreach ($categs as $kc => $cat) {		
+		
+			foreach ($languages as $key => $lang){
 				$str[$lang['id_lang']] = '';
+			}
 
 			$condition = '';
 			$availability = '';
@@ -154,8 +158,10 @@ class GShoppingFlux extends Module
 			$material = '';
 			$pattern = '';
 			$size = '';
-
-			if (!count(GCategories::get($cat['id_category'], $id_lang, $id_shop)) && ($cat['id_category'] > 0)) {
+			
+			$cat_exists = GCategories::get($cat['id_category'], $id_lang, $id_shop);
+			if ((!count($cat_exist) || $cat_exist===false) && ($cat['id_category'] > 0)) {				
+			 
 				if ($root->id_category == $cat['id_category']) {
 					foreach ($languages as $key => $lang)
 						$str[$lang['id_lang']] = $this->l('Google Category Example > Google Sub-Category Example');
@@ -309,7 +315,7 @@ class GShoppingFlux extends Module
 						$get_file_url = $this->uri.$this->_getOutputFileName($lang['iso_code'], $shop_id);
 
 					else
-						$get_file_url = $this->uri.'modules/'.$this->name.'/file_exports/'.$this->_getOutputFileName($lang['iso_code'], $shop_id);
+						$get_file_url = $this->uri.'modules/'.$this->name.'/export/'.$this->_getOutputFileName($lang['iso_code'], $shop_id);
 
 					$confirm .= '<br /> <a href="'.$get_file_url.'" target="_blank">'.$get_file_url.'</a> : '.($count[$i]['nb_products'] - $count[$i]['nb_combinations']).' '.$this->l('products exported');
 
@@ -1143,7 +1149,8 @@ class GShoppingFlux extends Module
 		$gcatlabel_edit = '';
 
 		if (Tools::isSubmit('updategshoppingflux') || Tools::isSubmit('statusgshoppingflux')) {
-			$gcateg = GCategories::getCategLang(Tools::getValue('id_gcategory'), (int)Shop::getContextShopID());
+			$id_lang= $this->context->cookie->id_lang;
+			$gcateg = GCategories::getCategLang(Tools::getValue('id_gcategory'), (int)Shop::getContextShopID(), $id_lang);
 
 			foreach ($gcateg['gcategory'] as $key => $categ)
 				$gcateg['gcategory'][$key] = Tools::htmlentitiesDecodeUTF8($categ);
@@ -1192,6 +1199,7 @@ class GShoppingFlux extends Module
 	public function renderList()
 	{
 		$gcategories = $this->makeCatTree();
+		
 		$fields_list = array(
 			'id_gcategory' => array(
 				'title' => $this->l('Category ID')
@@ -1285,14 +1293,11 @@ class GShoppingFlux extends Module
 		$output = '';
 
 		foreach ($languages as $lang) {
-			if (Configuration::get('GS_GEN_FILE_IN_ROOT') == 1) {
+			if (Configuration::get('GS_GEN_FILE_IN_ROOT', 0, $this->context->shop->id_shop_group, $this->context->shop->id) == 1) {
 				$get_file_url = $this->uri.$this->_getOutputFileName($lang['iso_code'], $this->context->shop->id);
+			} else {
+				$get_file_url = $this->uri.'modules/'.$this->name.'/export/'.$this->_getOutputFileName($lang['iso_code'], $this->context->shop->id);
 			}
-
-			else {
-				$get_file_url = $this->uri.'modules/'.$this->name.'/file_exports/'.$this->_getOutputFileName($lang['iso_code'], $this->context->shop->id);
-			}
-
 			$output .= '<a href="'.$get_file_url.'">'.$get_file_url.'</a> <br /> ';
 		}
 		$info_cron = '<a href="'.$this->uri.'modules/'.$this->name.'/cron.php" target="_blank">'.$this->uri.'modules/'.$this->name.'/cron.php</a>';
@@ -1365,17 +1370,17 @@ class GShoppingFlux extends Module
 				LEFT JOIN `'._DB_PREFIX_.'gshoppingflux` g ON g.`id_gcategory` = c.`id_category` AND g.`id_shop` = "'.(int)$shop_id.'"
 				LEFT JOIN `'._DB_PREFIX_.'gshoppingflux_lang` gl ON gl.`id_gcategory` = c.`id_category` AND gl.`id_shop` = "'.(int)$shop_id.'"
 				LEFT JOIN '._DB_PREFIX_.'shop s ON s.`id_shop` = "'.(int)$shop_id.'"
-				WHERE 1 '.$sql_filter.' '.($id_lang ? 'AND cl.`id_lang` = '.(int)$id_lang.' AND gl.`id_lang` = '.(int)$id_lang : '').'
-				'.($active ? ' AND c.`active` = 1' : '').'
-				'.(isset($groups) && Group::isFeatureActive() ? ' AND cg.`id_group` IN ('.implode(',', $groups).')' : '').'
-				'.(!$id_lang || (isset($groups) && Group::isFeatureActive()) ? ' GROUP BY c.`id_category`' : '').'
-				'.($sql_sort != '' ? $sql_sort : ' ORDER BY c.`level_depth` ASC').'
-				'.($sql_sort == '' && $use_shop_restriction ? ', cs.`position` ASC' : '').'
-				'.($sql_limit != '' ? $sql_limit : '')
+				WHERE 1 '.$sql_filter.' '.($id_lang ? 'AND cl.`id_lang` = '.(int)$id_lang.' AND gl.`id_lang` = '.(int)$id_lang : '')
+				.($active ? ' AND c.`active` = 1' : '') 
+				.(isset($groups) && Group::isFeatureActive() ? ' AND cg.`id_group` IN ('.implode(',', $groups).')' : '')
+				.(!$id_lang || (isset($groups) && Group::isFeatureActive()) ? ' GROUP BY c.`id_category`' : '')
+				.($sql_sort != '' ? $sql_sort : ' ORDER BY c.`level_depth` ASC')
+				.($sql_sort == '' && $use_shop_restriction ? ', cs.`position` ASC' : '')
+				.($sql_limit != '' ? $sql_limit : '')			
 			);
 
 			$attributes = $this->getShopAttributes($this->context->language->id, $this->context->shop->id);
-
+			
 			foreach ($result as $k => $cat) {
 				$result[$k]['gcategory'] = html_entity_decode($result[$k]['gcategory']);
 				$gid_colors = array();
@@ -1391,8 +1396,9 @@ class GShoppingFlux extends Module
 					}
 
 					$result[$k]['gcat_name'] = $str.' '.$result[$k]['gcat_name'];
-
-					if (Configuration::get('GS_ATTRIBUTES') == 1) {
+					$shop_group_id = Shop::getGroupFromShop($shop_id);
+					
+					if (Configuration::get('GS_ATTRIBUTES', 0, $shop_group_id, $shop_id) == 1) {
 						$result[$k]['color'] = explode(";", $result[$k]['color']);
 						foreach ($result[$k]['color'] as $a => $v) {
 							$gid_colors[] = $attributes[$v - 1]['name'];
@@ -1454,7 +1460,7 @@ class GShoppingFlux extends Module
 			$id_cat = Category::getRootCategory($id_lang, $shop);
 			$id_cat = $id_cat->id_category;
 		}
-
+		
 		$category = new Category((int)$id_cat, (int)$id_lang);
 
 		if (Validate::isLoadedObject($category)) {
@@ -1466,7 +1472,7 @@ class GShoppingFlux extends Module
 			if (!empty($c['children']))
 				foreach ($c['children'] as $j)
 					$catlist = $this->makeCatTree($j['id_category'], $catlist);
-
+					
 		return $catlist;
 	}
 
@@ -1628,7 +1634,7 @@ class GShoppingFlux extends Module
 			$generate_file_path = dirname(__FILE__).'/../../'.$this->_getOutputFileName($lang['iso_code'], $id_shop);
 
 		else
-			$generate_file_path = dirname(__FILE__).'/file_exports/'.$this->_getOutputFileName($lang['iso_code'], $id_shop);
+			$generate_file_path = dirname(__FILE__).'/export/'.$this->_getOutputFileName($lang['iso_code'], $id_shop);
 
 		// Google Shopping XML
 		$xml = '<?xml version="1.0" encoding="'.self::CHARSET.'" ?>'."\n";
@@ -1905,7 +1911,7 @@ class GShoppingFlux extends Module
 		$currency = new Currency((int)Configuration::get('PS_CURRENCY_DEFAULT'));
 		$use_tax = ($this->getPriceDisplayMethod($id_shop) ? false : true);
 		$no_tax = (!$use_tax ? true : false);
-		$price = number_format(round($p->getPriceStatic($product['id_product'], $use_tax, $combination, 2), 2), 2, '.', ' ');
+		$price = number_format(round($p->getPriceStatic($product['id_product'], $use_tax, $combination, 2), 2, PHP_ROUND_HALF_DOWN), 2, '.', ' ');
 		$price_without_reduct = number_format(round($p->getPriceWithoutReduct($no_tax, $combination), 2), 2, '.', ' ');
 		if ((float)($price) < (float)($price_without_reduct)) {
 			$xml_googleshopping .= '<g:price>'.$price_without_reduct.' '.$currency->iso_code.'</g:price>'."\n";
@@ -1994,7 +2000,7 @@ class GShoppingFlux extends Module
 
 		// Product attributes combination groups
 		if ($combination && !empty($product['item_group_id']))
-			$xml_googleshopping .= '<g:size>'.$product['item_group_id'].'</g:item_group_id>'."\n";
+			$xml_googleshopping .= '<g:item_group_id>'.$product['item_group_id'].'</g:item_group_id>'."\n";
 
 		// Product color attribute, or category color attribute, or parent's one
 		if (!empty($product['color']))
