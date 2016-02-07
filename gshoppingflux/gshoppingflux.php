@@ -1651,7 +1651,7 @@ class GShoppingFlux extends Module
 		$xml .= '<url>'.htmlspecialchars($this->context->link->getMediaLink(_PS_IMG_.Configuration::get('PS_LOGO')), self::REPLACE_FLAGS, self::CHARSET, false).'</url>'."\n";
 		$xml .= '<link>'.htmlspecialchars($this->uri, self::REPLACE_FLAGS, self::CHARSET, false).'</link>'."\n";
 		$xml .= '</image>'."\n";
-		$xml .= '<modified>'.date('Y-m-d').'T01:01:01Z</modified>'."\n";
+		$xml .= '<modified>'.date('Y-m-d').' T01:01:01Z</modified>'."\n";
 		$xml .= '<author>'."\n".'<name>'.htmlspecialchars(Configuration::get('PS_SHOP_NAME'), self::REPLACE_FLAGS, self::CHARSET, false).'</name>'."\n".'</author>'."\n\n";
 
 		$googleshoppingfile = fopen($generate_file_path, 'w');
@@ -1688,8 +1688,6 @@ class GShoppingFlux extends Module
 		$this->nb_not_exported_products = 0;
 		$this->nb_combinations= 0;
 		$this->nb_prd_w_attr = array();
-		$this->context->language->id = $id_lang;
-		$this->context->shop->id = $id_lang;
 
 		foreach ($products as $product) {
 			$p = new Product($product['id_product'], true, $id_lang, $id_shop, $this->context);
@@ -1736,11 +1734,12 @@ class GShoppingFlux extends Module
 						}
 						$product['quantity'] = $a['quantity'];
 						$product['weight']   = $a['weight'];
+						if(!empty($a['ean13']))	$product['ean13'] = $a['ean13'];
 					}
 
 					if (empty($product['color']) && empty($product['material']) && empty($product['pattern']) && empty($product['size']))
 						continue 2;
-
+					
 					$product['item_group_id'] = $product['pid'];
 					$product['gid'] = $product['pid'].'-'.$id_attr;
 					$xml_googleshopping = $this->getItemXML($product, $lang, $id_shop, $id_attr);
@@ -1924,7 +1923,7 @@ class GShoppingFlux extends Module
 
 		$identifier_exists = 0;
 		// GTIN (EAN, UPC, JAN, ISBN)
-		if ($this->module_conf['no_gtin'] != 1 && $product['ean13'] != '' && $product['ean13'] != '0') {
+		if (!empty($product['ean13'])) {
 			$xml_googleshopping .= '<g:gtin>'.$product['ean13'].'</g:gtin>'."\n";
 			$identifier_exists++;
 		}
