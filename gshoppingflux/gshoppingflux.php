@@ -44,8 +44,9 @@ class GShoppingFlux extends Module
 
 		$this->need_instance = 0;
 		$this->ps_versions_compliancy = array('min' => '1.5.0.0', 'max' => _PS_VERSION_);
-
 		$this->uri = ToolsCore::getCurrentUrlProtocolPrefix().$this->context->shop->domain_ssl.$this->context->shop->physical_uri;
+		if(empty($this->context->shop->domain_ssl))
+			$this->uri = ToolsCore::getCurrentUrlProtocolPrefix().$this->context->shop->domain.$this->context->shop->physical_uri;
 		$this->categories_values = array();
 	}
 
