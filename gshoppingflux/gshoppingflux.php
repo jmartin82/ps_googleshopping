@@ -48,6 +48,7 @@ class GShoppingFlux extends Module
 		if(empty($this->context->shop->domain_ssl))
 			$this->uri = ToolsCore::getCurrentUrlProtocolPrefix().$this->context->shop->domain.$this->context->shop->physical_uri;
 		$this->categories_values = array();
+		
 	}
 
 	public function install($delete_params = true)
@@ -314,7 +315,6 @@ class GShoppingFlux extends Module
 				foreach ($languages as $i => $lang) {
 					if (Configuration::get('GS_GEN_FILE_IN_ROOT', 0, $shop_group_id, $shop_id) == 1)
 						$get_file_url = $this->uri.$this->_getOutputFileName($lang['iso_code'], $shop_id);
-
 					else
 						$get_file_url = $this->uri.'modules/'.$this->name.'/export/'.$this->_getOutputFileName($lang['iso_code'], $shop_id);
 
@@ -366,8 +366,8 @@ class GShoppingFlux extends Module
 
 		if ((Tools::getIsset('updategshoppingflux') || Tools::getIsset('statusgshoppingflux')) && !Tools::getValue('updategshoppingflux'))
 			$this->_html .= $this->renderAddForm();
-
-		$this->_html .= $this->renderForm();
+		else
+			$this->_html .= $this->renderForm();
 
 		$gcategories = GCategories::gets((int)$id_lang, null, (int)$shop_id);
 
@@ -447,8 +447,8 @@ class GShoppingFlux extends Module
 		$helper->token = Tools::getAdminTokenLite('AdminModules');
 		$helper->tpl_vars = array(
 			'fields_value' => $this->getConfigFieldsValues($this->context->shop->id),
-			'languages' => $this->context->controller->getLanguages(),
-			'id_language' => $this->context->language->id
+			'id_language' => $this->context->language->id,
+			'languages' => $this->context->controller->getLanguages()
 		);
 
 		$id_lang = $this->context->language->id;
@@ -588,7 +588,7 @@ class GShoppingFlux extends Module
 						'multiple' => true,
 						'label' => $this->l('Products color feature'),
 						'name' => 'color[]',
-						'default_value' => $helper->tpl_vars['fields_value']['color'],
+						'default_value' => $helper->tpl_vars['fields_value']['color[]'],
 						'options' => array(
 							'query' => $features,
 							'id' => 'id_feature',
@@ -601,7 +601,7 @@ class GShoppingFlux extends Module
 						'multiple' => true,
 						'label' => $this->l('Products material feature'),
 						'name' => 'material[]',
-						'default_value' => $helper->tpl_vars['fields_value']['material'],
+						'default_value' => $helper->tpl_vars['fields_value']['material[]'],
 						'options' => array(
 							'query' => $features,
 							'id' => 'id_feature',
@@ -614,7 +614,7 @@ class GShoppingFlux extends Module
 						'multiple' => true,
 						'label' => $this->l('Products pattern feature'),
 						'name' => 'pattern[]',
-						'default_value' => $helper->tpl_vars['fields_value']['pattern'],
+						'default_value' => $helper->tpl_vars['fields_value']['pattern[]'],
 						'options' => array(
 							'query' => $features,
 							'id' => 'id_feature',
@@ -627,7 +627,7 @@ class GShoppingFlux extends Module
 						'multiple' => true,
 						'label' => $this->l('Products size feature'),
 						'name' => 'size[]',
-						'default_value' => $helper->tpl_vars['fields_value']['size'],
+						'default_value' => $helper->tpl_vars['fields_value']['size[]'],
 						'options' => array(
 							'query' => $features,
 							'id' => 'id_feature',
@@ -873,15 +873,19 @@ class GShoppingFlux extends Module
 		$helper = new HelperForm();
 		$helper->show_toolbar = false;
 		$helper->table = $this->table;
-		$helper->languages = $this->context->controller->getLanguages();
 		$helper->default_form_language = (int)$this->context->language->id;
 		$helper->allow_employee_form_lang = Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG') ? Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG') : 0;
 		$this->fields_form = array();
-		$helper->fields_value = $this->getGCategFieldsValues();
 		$helper->identifier = $this->identifier;
 		$helper->currentIndex = $this->context->link->getAdminLink('AdminModules', false).'&configure='.$this->name.'&tab_module='.$this->tab.'&module_name='.$this->name;
 		$helper->token = Tools::getAdminTokenLite('AdminModules');
-
+		$back_url = $helper->currentIndex.'&token='.$helper->token;
+		$helper->fields_value = $this->getGCategFieldsValues();
+		$helper->languages = $this->context->controller->getLanguages();
+		$helper->tpl_vars = array(
+			'back_url' => $back_url,
+			'show_cancel_button' => true
+		);
 		$id_lang = $this->context->language->id;
 		$id_shop = $this->context->shop->id;
 
@@ -1054,7 +1058,7 @@ class GShoppingFlux extends Module
 						'multiple' => true,
 						'label' => $this->l('Products color attribute'),
 						'name' => 'color[]',
-						'default_value' => $helper->fields_value['color'],
+						'default_value' => $helper->fields_value['color[]'],
 						'options' => array(
 							'query' => $attributes,
 							'id' => 'id_attribute_group',
@@ -1067,7 +1071,7 @@ class GShoppingFlux extends Module
 						'multiple' => true,
 						'label' => $this->l('Products material attribute'),
 						'name' => 'material[]',
-						'default_value' => $helper->fields_value['material'],
+						'default_value' => $helper->fields_value['material[]'],
 						'options' => array(
 							'query' => $attributes,
 							'id' => 'id_attribute_group',
@@ -1080,7 +1084,7 @@ class GShoppingFlux extends Module
 						'multiple' => true,
 						'label' => $this->l('Products pattern attribute'),
 						'name' => 'pattern[]',
-						'default_value' => $helper->fields_value['pattern'],
+						'default_value' => $helper->fields_value['pattern[]'],
 						'options' => array(
 							'query' => $attributes,
 							'id' => 'id_attribute_group',
@@ -1093,7 +1097,7 @@ class GShoppingFlux extends Module
 						'multiple' => true,
 						'label' => $this->l('Products size attribute'),
 						'name' => 'size[]',
-						'default_value' => $helper->fields_value['size'],
+						'default_value' => $helper->fields_value['size[]'],
 						'options' => array(
 							'query' => $attributes,
 							'id' => 'id_attribute_group',
@@ -1402,22 +1406,22 @@ class GShoppingFlux extends Module
 					if (Configuration::get('GS_ATTRIBUTES', 0, $shop_group_id, $shop_id) == 1) {
 						$result[$k]['color'] = explode(";", $result[$k]['color']);
 						foreach ($result[$k]['color'] as $a => $v) {
-							$gid_colors[] = $attributes[$v - 1]['name'];
+							if(isset($attributes[$v - 1]))$gid_colors[] = $attributes[$v - 1]['name'];
 						}
 
 						$result[$k]['material'] = explode(";", $result[$k]['material']);
 						foreach ($result[$k]['material'] as $a => $v) {
-							$gid_materials[] = $attributes[$v - 1]['name'];
+							if(isset($attributes[$v - 1]))$gid_materials[] = $attributes[$v - 1]['name'];
 						}
 
 						$result[$k]['pattern'] = explode(";", $result[$k]['pattern']);
 						foreach ($result[$k]['pattern'] as $a => $v) {
-							$gid_patterns[] = $attributes[$v - 1]['name'];
+							if(isset($attributes[$v - 1]))$gid_patterns[] = $attributes[$v - 1]['name'];
 						}
 
 						$result[$k]['size'] = explode(";", $result[$k]['size']);
 						foreach ($result[$k]['size'] as $a => $v) {
-							$gid_sizes[] = $attributes[$v - 1]['name'];
+							if(isset($attributes[$v - 1]))$gid_sizes[] = $attributes[$v - 1]['name'];
 						}
 
 						$result[$k]['gid_colors']    = implode(" ; ", $gid_colors);
@@ -1535,11 +1539,11 @@ class GShoppingFlux extends Module
 
 			if (!$color && !empty($this->module_conf['color']))
 				$color = $this->module_conf['color'];
-			if (!$material && !$this->module_conf['material'])
+			if (!$material && !empty($this->module_conf['material']))
 				$material = $this->module_conf['material'];
 			if (!$pattern && !empty($this->module_conf['pattern']))
 				$pattern = $this->module_conf['pattern'];
-			if (!$size && !$this->module_conf['size'])
+			if (!$size && !empty($this->module_conf['size']))
 				$size = $this->module_conf['size'];
 
 			$this->categories_values[$cat['id_category']]['gcategory'] = html_entity_decode($gcategory);
@@ -1732,9 +1736,9 @@ class GShoppingFlux extends Module
 								$product['size'] = $a['attribute_name'];
 							}
 						}
-						$product['quantity'] = $a['quantity'];
-						$product['weight']   = $a['weight'];
-						if(!empty($a['ean13']))	$product['ean13'] = $a['ean13'];
+						foreach($a as $key => $val){
+							$product[$key] = $val;
+						}
 					}
 
 					if (empty($product['color']) && empty($product['material']) && empty($product['pattern']) && empty($product['size']))
