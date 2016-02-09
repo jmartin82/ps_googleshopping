@@ -32,7 +32,7 @@ class GShoppingFlux extends Module
 	{
 		$this->name = 'gshoppingflux';
 		$this->tab = 'smart_shopping';
-		$this->version = '1.6';
+		$this->version = '1.6.1';
 		$this->author  = 'Dim00z, Elitius';
 
 		$this->bootstrap = true;
@@ -162,7 +162,7 @@ class GShoppingFlux extends Module
 			$size = '';
 			
 			$cat_exists = GCategories::get($cat['id_category'], $id_lang, $id_shop);
-			if ((!count($cat_exist) || $cat_exist===false) && ($cat['id_category'] > 0)) {				
+			if ((!count($cat_exists) || $cat_exists===false) && ($cat['id_category'] > 0)) {				
 			 
 				if ($root->id_category == $cat['id_category']) {
 					foreach ($languages as $key => $lang)
