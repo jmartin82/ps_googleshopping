@@ -143,8 +143,8 @@ class GCategories
 		foreach ($gcateg as $id_lang => $categ)
 			Db::getInstance()->update('gshoppingflux_lang', array(
 				'gcategory'=>pSQL($categ),
-			),
-			'id_gcategory = '.(int)$id_category.' AND id_lang = '.(int)$id_lang.' AND id_shop='.(int)$id_shop
+				),
+				'id_gcategory = '.(int)$id_category.' AND id_lang = '.(int)$id_lang.' AND id_shop='.(int)$id_shop
 			);
 	}
 

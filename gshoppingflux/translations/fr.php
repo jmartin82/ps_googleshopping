@@ -15,6 +15,8 @@ $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_be5d5d37542d75f93a87094459f76
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_8eddcc44b4d68603564af379deea53ce'] = 'produits non-exportés (rupture de stock)';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_8b024bfb59bcbfcbae1bb593eb43d963'] = 'Impossible de mettre à jour les paramètres pour la boutique suivante : %s';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_ea4e267b5f96c170f275f9b59713d185'] = 'La catégorie Google a été mise à jour.';
+$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_87d54e1619c728ba9af47afee4cde3f0'] = 'Les devises sélectionnées pour cette langue ont bien été sauvegardées.';
+$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_16ea963e0abfdc9b7cd6c08b67dc4332'] = 'La devise sélectionnée pour cette langue a bien été sauvegardée.';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_bc02e8f55cf4a9c0faaa8dfefb864043'] = 'Vous ne pouvez pas gérer les catégories Google depuis un contexte \"Toutes les boutiques\" ou \"Groupe de boutiques\", veuillez sélectionner directement la boutique que vous voulez éditer.';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_298b615220606d42b6ac60269df0d321'] = 'Les modifications seront appliquées à la boutique : %s';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_aef3662e6419ddaaa0a31df70e3b6557'] = 'Les modifications seront appliquées à ce groupe de boutiques : %s';
@@ -28,7 +30,7 @@ $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_8284ae5df53e6e7ffc1f2cc67ae68
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_f8235ee68ea516cb3717f782ce711a07'] = 'Veuillez vous reporter à la page <a href="http://support.google.com/merchants/answer/188494" target="_blank">Google Shopping Products Feed Specification</a> si vous n\'avez pas idée de comment paramétrer ces options.  Si tous les produits de votre boutique correspondent à la même catégorie Google Shopping, vous pouvez lier cette catégorie Google Shopping à votre catégorie Accueil dans la liste ci-dessous, toutes les sous-catégories hériteront du même paramétrage. Inutile de remplir les champs de chaque catégorie.  Les produits situés dans des catégories non liées à des catégories Google Shopping seront exportés dans la catégorie Google Shopping liée à la catégorie parente la plus proche.';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_3225a10b07f1580f10dee4abc3779e6c'] = 'Paramètres';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_7791022694bf889f0b72d52bdac04285'] = 'Type de produits';
-$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_587be6087a7b957554bf8e46141bfe23'] = 'Type de produits par défaut de votre magasin (optionnel).';
+$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_1aedeffed09527220e2ad04cad809117'] = 'Le type de produits par défaut de votre magasin. Par exemple, si vous vendez des chemises et des pantalons, et que vos catégories principales sont \"Homme\", \"Femme\", \"Enfant\", alors saisissez \"Vêtements\" ici. Cela sera exporté comme la catégorie principale de votre magasin. Ce paramètre est optionnel et peut-être laissé vide. Néanmoins le module requiert qu\'au moins la catégorie principale de votre magasin soit correctement liée à une catégorie de produits de Google Shopping.';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_baf15503436fc1258776bc08749a8255'] = 'Type de description';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_fe8bac2727b81eec04100eddcbf0195c'] = 'Choisissez le type de description';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_0ea6b9c133352843b875fc332938b832'] = 'Prix du transport';
@@ -96,8 +98,17 @@ $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_b7252f98f92754cc6663a4f7c5d95
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_c9d435f8fc5c86be5c6eec31e95719e7'] = 'Maintenez la touche [Ctrl] enfoncée pour sélectionner plusieurs attributs de taille.';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_c9cc8cce247e49bae79f15173ce97354'] = 'Enregistrer';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_06933067aafd48425d67bcb01bba5cb6'] = 'Mettre à jour';
-$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_f9edc7482d3eff492319e6c033e9cf55'] = 'ID catégorie';
+$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_bc980502ca86ad7d28b2b8c7893b8c5f'] = 'Sélectionnez les devises à exporter pour cette langue.';
+$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_27dec7860db1c9649c4a64f87f3dc94f'] = 'Paramètres d\'export de la langue';
+$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_4994a8ffeba4ac3140beb89e8d41f174'] = 'Langue';
+$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_e59a41e120686e63cbb743f003bea4e6'] = 'Code language';
+$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_dfcfc43722eef1eab1e4a12e50a068b1'] = 'Devises';
+$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_047afb205768b0f982386750a8f3e21c'] = 'Maintenez la touche [Ctrl] enfoncée pour sélectionner plusieurs devises.';
+$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_b718adec73e04ce3ec720dd11a06a308'] = 'ID';
+$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_386c339d37e737a436499d423a77df0c'] = 'Devise';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_e93c33bd1341ab74195430daeb63db13'] = 'Nom du magasin';
+$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_5f2ea5b1b2860671649d93454e0ac798'] = 'Langues et devises à exporter';
+$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_f9edc7482d3eff492319e6c033e9cf55'] = 'ID catégorie';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_66364257ce980c79ef9e183ac06753a8'] = 'État';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_9ff9c46512c186ebae182519a55dc6a9'] = 'Dispo.';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_019ec3132cdf8ee0f2e2a75cf5d3e459'] = 'Genre';
