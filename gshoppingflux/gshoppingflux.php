@@ -1792,7 +1792,7 @@ class GShoppingFlux extends Module
 			$this->categories_values[$cat['id_category']]['gcat_avail'] = $availability;
 			$this->categories_values[$cat['id_category']]['gcat_gender'] = $gender;
 			$this->categories_values[$cat['id_category']]['gcat_age_group'] = $age_group;
-			$this->categories_values[$cat['id_category']]['gcat_color'] = explode(";", $color);
+			$this->categories_values[$cat['id_category']]['gcat_color[]'] = explode(";", $color);
 			$this->categories_values[$cat['id_category']]['gcat_material[]'] = explode(";", $material);
 			$this->categories_values[$cat['id_category']]['gcat_pattern[]'] = explode(";", $pattern);
 			$this->categories_values[$cat['id_category']]['gcat_size[]'] = explode(";", $size);
@@ -1977,32 +1977,24 @@ class GShoppingFlux extends Module
 				$combinum = 0;
 				foreach ($attr as $id_attr => $v) {
 					foreach ($v as $k => $a) {
-						if(isset($this->categories_values[$product['id_gcategory']]['gcat_color'])){
-							foreach ($this->categories_values[$product['id_gcategory']]['gcat_color'] as $c) {
-								if ($k == $c) {
-									$product['color'] = $a['attribute_name'];
-								}
+						foreach ($this->categories_values[$product['id_gcategory']]['gcat_color[]'] as $c) {
+							if ($k == $c) {
+								$product['color'] = $a['attribute_name'];
 							}
 						}
-						if(isset($this->categories_values[$product['id_gcategory']]['gcat_material'])){
-							foreach ($this->categories_values[$product['id_gcategory']]['gcat_material'] as $c) {
-								if ($k == $c) {
-									$product['material'] = $a['attribute_name'];
-								}
+						foreach ($this->categories_values[$product['id_gcategory']]['gcat_material[]'] as $c) {
+							if ($k == $c) {
+								$product['material'] = $a['attribute_name'];
 							}
 						}
-						if(isset($this->categories_values[$product['id_gcategory']]['gcat_pattern'])){
-							foreach ($this->categories_values[$product['id_gcategory']]['gcat_pattern'] as $c) {
-								if ($k == $c) {
-									$product['pattern'] = $a['attribute_name'];
-								}
+						foreach ($this->categories_values[$product['id_gcategory']]['gcat_pattern[]'] as $c) {
+							if ($k == $c) {
+								$product['pattern'] = $a['attribute_name'];
 							}
 						}
-						if(isset($this->categories_values[$product['id_gcategory']]['gcat_size'])){
-							foreach ($this->categories_values[$product['id_gcategory']]['gcat_size'] as $c) {
-								if ($k == $c) {
-									$product['size'] = $a['attribute_name'];
-								}
+						foreach ($this->categories_values[$product['id_gcategory']]['gcat_size[]'] as $c) {
+							if ($k == $c) {
+								$product['size'] = $a['attribute_name'];
 							}
 						}
 						foreach($a as $k => $v){
