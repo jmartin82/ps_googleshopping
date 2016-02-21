@@ -329,7 +329,7 @@ class GShoppingFlux extends Module
 
 		elseif (Tools::isSubmit('updateCategory')) {
 			$id_gcategory = (int)Tools::getValue('id_gcategory', 0);
-			$export = (int)Tools::getValue('export_active_on', 0);
+			$export = (int)Tools::getValue('export', 0);
 			$condition = Tools::getValue('condition');
 			$availability = Tools::getValue('availability');
 			$gender = Tools::getValue('gender');
@@ -918,7 +918,8 @@ class GShoppingFlux extends Module
 	public function renderCategForm()
 	{
 		$helper = new HelperForm();
-		$helper->show_toolbar = false;
+		$helper->show_toolbar = false;		
+		$helper->module = $this;
 		$helper->table = $this->table;
 		$helper->default_form_language = (int)$this->context->language->id;
 		$helper->allow_employee_form_lang = Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG') ? Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG') : 0;
@@ -1042,18 +1043,20 @@ class GShoppingFlux extends Module
 						'desc' => $gcat_desc
 					),
 					array(
-						'type' => 'checkbox',
+						'type' => 'switch',
 						'name' => 'export',
+						'label' => $this->l('Export products from this category'),
 						'values' => array(
-							'query' => array(
-								array(
-									'id' => 'active_on',
-									'name' => $this->l('Export products from this category'),
-									'val' => '1'
-								)
+							array(
+							  'id' => 'active_on',
+							  'value' => 1,
+							  'label' => $this->l('Enabled')
 							),
-							'id' => 'id',
-							'name' => 'name'
+							array(
+							  'id' => 'active_off',
+							  'value' => 0,
+							  'label' => $this->l('Disabled')
+							)
 						)
 					),
 					array(
@@ -1223,7 +1226,7 @@ class GShoppingFlux extends Module
 		$fields_values = array(
 			'id_gcategory' => Tools::getValue('id_gcategory'),
 			'breadcrumb' => (isset($gcatlabel_edit) ? $gcatlabel_edit : ''),
-			'export_active_on' => Tools::getValue('export_active_on', isset($gcatexport_active) ? $gcatexport_active : ''),
+			'export' => Tools::getValue('export', isset($gcatexport_active) ? $gcatexport_active : ''),
 			'condition' => Tools::getValue('condition', isset($gcatcondition_edit) ? $gcatcondition_edit : ''),
 			'availability' => Tools::getValue('availability', isset($gcatavail_edit) ? $gcatavail_edit : ''),
 			'gender' => Tools::getValue('gender', isset($gcatgender_edit) ? $gcatgender_edit : ''),
@@ -1256,12 +1259,7 @@ class GShoppingFlux extends Module
 			$glang = GLangAndCurrency::getLangCurrencies(Tools::getValue('id_glang'), (int)Shop::getContextShopID());
 			$glangcurrency_edit = explode(";",$glang[0]['id_currency']);
 			$glangexport_active = $glang[0]['active'];
-		}		
-		if ($glangexport_active  == 1){
-			$glangexport_active = '<img src="../img/admin/enabled.gif" alt="{$value.label}" title="{$value.label}" />';
-		}else{
-			$glangexport_active = '<img src="../img/admin/disabled.gif" alt="{$value.label}" title="{$value.label}" />';
-		}		
+		}
 		$language = Language::getLanguage(Tools::getValue('id_glang'));
 		$fields_values = array(
 			'id_glang' => Tools::getValue('id_glang'),
@@ -1281,6 +1279,7 @@ class GShoppingFlux extends Module
 		$this->fields_form = array();
 		$helper = new HelperForm();
 		$helper->show_toolbar = false;
+		$helper->module = $this;
 		$helper->table = 'gshoppingflux_lc';
 		$helper->default_form_language = (int)$this->context->language->id;
 		$helper->allow_employee_form_lang = Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG') ? Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG') : 0;
@@ -1315,10 +1314,23 @@ class GShoppingFlux extends Module
 						'name' => 'language_code'
 					),
 					array(
-						'type' => 'free',
-						'label' => 'Enabled',
+						'type' => 'switch',
+						'label' => $this->l('Enabled'),
 						'name' => 'active',
-						'is_bool' => true
+						'is_bool' => true,
+						'disabled' => true,
+						'values' => array(
+							array(
+							  'id' => 'active_on',
+							  'value' => 1,
+							  'label' => $this->l('Enabled')
+							),
+							array(
+							  'id' => 'active_off',
+							  'value' => 0,
+							  'label' => $this->l('Disabled')
+							)
+						)
 					),
 					array(
 						'type' => 'select',
@@ -1377,6 +1389,10 @@ class GShoppingFlux extends Module
 			'id_glang' => array(
 				'title' => $this->l('ID')
 			),
+			'flag' => array(
+				'title' => $this->l('Flag'),
+                'image' => 'l',
+			),
             'name' => array(
                 'title' => $this->l('Language')
             ),
@@ -1410,14 +1426,14 @@ class GShoppingFlux extends Module
 
 		$helper = new HelperList();
 		$helper->shopLinkType = '';
+		$helper->show_toolbar = false;
 		$helper->simple_header = true;
 		$helper->identifier = 'id_glang';
+		$helper->imageType = "jpg";
 		$helper->table = 'gshoppingflux_lc';
 		$helper->actions = array(
 			'edit'
 		);
-		$helper->show_toolbar = false;
-		$helper->module = $this;
 		$helper->title = $this->l('Export languages and currencies');
 		$helper->token = Tools::getAdminTokenLite('AdminModules');
 		$helper->currentIndex = AdminController::$currentIndex.'&configure='.$this->name;
@@ -1428,9 +1444,9 @@ class GShoppingFlux extends Module
 		
 		foreach($glangflux as $k => $v){
 			$currencies = explode(";",$glangflux[$k]['id_currency']);
-			$arrCurr = array();	
+			$arrCurr = array();
 			foreach($currencies as $idc){
-				$currency = new Currency($idc);			
+				$currency = new Currency($idc);
 				$arrCurr[] = $currency->iso_code;
 			}
 			$glangflux[$k]['currency'] = implode(" - ",$arrCurr);

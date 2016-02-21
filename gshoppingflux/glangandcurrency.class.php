@@ -22,22 +22,20 @@ class GLangAndCurrency
 {
 	public static function getLangCurrencies($id_lang, $id_shop)
 	{
-		$ret = Db::getInstance()->executeS('SELECT glc.* '
+		$ret = Db::getInstance()->executeS('SELECT glc.*, l.* '
 			 . 'FROM '._DB_PREFIX_.'gshoppingflux_lc glc '
+			 . 'LEFT JOIN `'._DB_PREFIX_.'lang` l ON (l.id_lang = glc.id_glang)'
 			 . 'WHERE glc.id_glang IN (0, '.(int)$id_lang.') '
 			 . 'AND glc.id_shop IN (0, '.(int)$id_shop.');');
-		$ret[0] = array_merge($ret[0],Language::getLanguage($id_lang));
 		return $ret;
 	}
 	
 	public static function getAllLangCurrencies($active = false)
 	{
-		$sql = 'SELECT glc.* FROM '._DB_PREFIX_.'gshoppingflux_lc glc '
-			 . 'INNER JOIN '._DB_PREFIX_.'lang lg ON (glc.id_glang = lg.id_lang) ';
-		if($active) $sql .= 'WHERE lg.active = 1 ';
-		$sql .= ';';
-		$ret = Db::getInstance()->executeS($sql);
-		foreach($ret as $k => $v){$ret[$k] = array_merge($ret[$k],Language::getLanguage($ret[$k]['id_glang']));}
+		$sql = 'SELECT glc.*, l.* FROM '._DB_PREFIX_.'gshoppingflux_lc glc '
+			 . 'INNER JOIN '._DB_PREFIX_.'lang l ON (glc.id_glang = l.id_lang)';
+		if($active) $sql .= ' WHERE l.active = 1';
+		$ret = Db::getInstance()->executeS($sql.';');
 		return $ret;
 	}
 
