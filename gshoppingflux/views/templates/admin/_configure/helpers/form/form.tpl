@@ -32,6 +32,7 @@
         {else}
             <img src="../img/admin/disabled.gif" alt="{$input.values[1].label}" title="{$input.values[1].label}" />
         {/if}
+        <input type="hidden" name="{$input.name}" id="{$input.name}_{$fields_value[$input.name]}" value="{$fields_value[$input.name]}" />
     {elseif $input.type == 'switch' && $smarty.const._PS_VERSION_|@addcslashes:'\'' < '1.6'}                    
         {foreach $input.values as $value}
             <input type="radio" name="{$input.name}" id="{$input.name}_{$value.id}" value="{$value.value|escape:'html':'UTF-8'}"{if $fields_value[$input.name] == $value.value} checked="checked"{/if}{if isset($input.disabled) && $input.disabled} disabled="disabled"{/if} />
