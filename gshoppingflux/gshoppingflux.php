@@ -355,9 +355,9 @@ class GShoppingFlux extends Module
 		elseif (Tools::isSubmit('updateLanguage')) {
 			$id_glang = (int)Tools::getValue('id_glang', 0);
 			$currencies = implode(";", Tools::getValue('currencies'));
-			$export = (int)Tools::getValue('export_active_on', 0);
+			$export = (int)Tools::getValue('active', 0);
 			if (Tools::isSubmit('updatelang')) {
-				GLangAndCurrency::update($id_glang, $currencies,(int)Shop::getContextShopID(), $export);				
+				GLangAndCurrency::update($id_glang, $currencies,(int)Shop::getContextShopID());				
 				if(count(Tools::getValue('currencies'))>1)
 					$this->confirm = $this->l('Selected currencies for this language have been saved.');
 				else
@@ -1267,8 +1267,7 @@ class GShoppingFlux extends Module
 			'iso_code' => $language['iso_code'],
 			'language_code' => $language['language_code'],
 			'currencies[]' => Tools::getValue('currencies[]', $glangcurrency_edit),
-			'active' => Tools::getValue('export_active_on', $glangexport_active),
-			'export_active_on' => Tools::getValue('export_active_on', $glang[0]['active'])
+			'active' => Tools::getValue('active', $glangexport_active)
 		);
 
 		return $fields_values;
@@ -1371,7 +1370,7 @@ class GShoppingFlux extends Module
 			);
 			$fields_form['form']['input'][] = array(
 				'type' => 'hidden',
-				'name' => 'export_active_on'
+				'name' => 'active'
 			);
 			$helper->fields_value['updatelang'] = '';
 		}
