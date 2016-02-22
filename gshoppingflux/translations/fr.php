@@ -105,6 +105,7 @@ $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_e59a41e120686e63cbb743f003bea
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_dfcfc43722eef1eab1e4a12e50a068b1'] = 'Devises';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_047afb205768b0f982386750a8f3e21c'] = 'Maintenez la touche [Ctrl] enfoncée pour sélectionner plusieurs devises.';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_b718adec73e04ce3ec720dd11a06a308'] = 'ID';
+$_MODULE['<{gshoppingflux}prestashop>gshoppingflux_c5836008c1649301e29351a55db8f65c'] = 'Drapeau';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_386c339d37e737a436499d423a77df0c'] = 'Devise';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_e93c33bd1341ab74195430daeb63db13'] = 'Nom du magasin';
 $_MODULE['<{gshoppingflux}prestashop>gshoppingflux_5f2ea5b1b2860671649d93454e0ac798'] = 'Langues et devises à exporter';
