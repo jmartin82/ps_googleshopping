@@ -1368,10 +1368,6 @@ class GShoppingFlux extends Module
 				'type' => 'hidden',
 				'name' => 'id_glang'
 			);
-			$fields_form['form']['input'][] = array(
-				'type' => 'hidden',
-				'name' => 'active'
-			);
 			$helper->fields_value['updatelang'] = '';
 		}
 
