@@ -1299,7 +1299,7 @@ class GShoppingFlux extends Module
 			'form' => array(
 				'legend' => array(
 					'title' => $this->l('Language export settings'),
-					'icon' => 'icon-link'
+					'icon' => 'icon-globe'
 				),
 				'input' => array(
 					array(
@@ -1456,7 +1456,7 @@ class GShoppingFlux extends Module
 		
 		$fields_list = array(
 			'id_gcategory' => array(
-				'title' => $this->l('Category ID')
+				'title' => $this->l('ID')
 			)
 		);
 

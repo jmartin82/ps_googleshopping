@@ -27,13 +27,14 @@
 
 {block name="input"}
     {if $input.type == 'switch' && isset($input.is_bool) && $input.is_bool == true && isset($input.disabled) && $input.disabled == true}
-        {if $fields_value[$input.name] == 1}
+    	{$enab = $fields_value[$input.name]}
+        {if $enab == 1}
             <img src="../img/admin/enabled.gif" alt="{$input.values[0].label}" title="{$input.values[0].label}" />
         {else}
             <img src="../img/admin/disabled.gif" alt="{$input.values[1].label}" title="{$input.values[1].label}" />
-        {/if}
-        <input type="hidden" name="{$input.name}" id="{$input.name}_{$fields_value[$input.name]}" value="{$fields_value[$input.name]}" />
-    {elseif $input.type == 'switch' && $smarty.const._PS_VERSION_|@addcslashes:'\'' < '1.6'}                    
+        {/if} 
+        <input type="hidden" name="{$input.name}" id="{$input.name}_{$enab}" value="{$enab}" />
+	{elseif $input.type == 'switch' && $smarty.const._PS_VERSION_|@addcslashes:'\'' < '1.6'}                    
         {foreach $input.values as $value}
             <input type="radio" name="{$input.name}" id="{$input.name}_{$value.id}" value="{$value.value|escape:'html':'UTF-8'}"{if $fields_value[$input.name] == $value.value} checked="checked"{/if}{if isset($input.disabled) && $input.disabled} disabled="disabled"{/if} />
             <label class="t" for="{$input.name}_{$value.id}">
