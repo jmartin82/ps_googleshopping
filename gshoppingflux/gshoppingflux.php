@@ -2172,9 +2172,10 @@ class GShoppingFlux extends Module
 
 			if ($product['quantity'] > 0 && $product['available_for_order'])
 				$xml_googleshopping .= '<g:availability>in stock</g:availability>'."\n";
-
+			elseif($p->isAvailableWhenOutOfStock((int)$p->out_of_stock) && $product['available_for_order'])
+				$xml_googleshopping .= '<g:availability>preorder</g:availability>'."\n";
 			else
-				$xml_googleshopping .= '<g:availability>out of stock</g:availability>'."\n";
+				$xml_googleshopping .= '<g:availability>out of stock</g:availability>'."\n";				
 		}
 
 		else {
