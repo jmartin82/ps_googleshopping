@@ -2033,8 +2033,8 @@ class GShoppingFlux extends Module
 			}
 		}
 
-		$xml .= '</channel>'."\n".'</rss>';
-		fwrite($googleshoppingfile, $xml);
+		$xm2 = '</channel>'."\n".'</rss>';
+		fwrite($googleshoppingfile, $xml2);
 		fclose($googleshoppingfile);
 
 		@chmod($generate_file_path, 0777);
