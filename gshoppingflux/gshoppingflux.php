@@ -2051,7 +2051,7 @@ class GShoppingFlux extends Module
 		$xml_googleshopping = '';
 		$id_lang = (int)$lang['id_lang'];
 		$title_limit  = 70;
-		$description_limit = 10000;
+		$description_limit = 4990;
 		$languages = Language::getLanguages();
 		$tailleTabLang = sizeof($languages);
 		$this->context->language->id = $id_lang;
