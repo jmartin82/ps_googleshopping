@@ -1972,8 +1972,6 @@ class GShoppingFlux extends Module
 				$attributeCombinations = $p->getAttributeCombinations($id_lang);
 			}
 
-			$attributeCombinations = $p->getAttributeCombinations($id_lang);
-
 			if ($this->module_conf['mpn_type'] == 'reference' && !empty($product['reference']))
 				$product['pid'] = $product['reference'];
 			else if ($this->module_conf['mpn_type'] == 'supplier_reference' && !empty($product['supplier_reference']))
