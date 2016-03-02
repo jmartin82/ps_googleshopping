@@ -1910,6 +1910,10 @@ class GShoppingFlux extends Module
 		else
 			$generate_file_path = dirname(__FILE__).'/export/'.$this->_getOutputFileName($lang['iso_code'], $curr->iso_code, $id_shop);
 
+		if ($this->shop->name == 'Prestashop') {
+			$this->shop->name = Configuration::get('PS_SHOP_NAME');
+		}
+
 		// Google Shopping XML
 		$xml = '<?xml version="1.0" encoding="'.self::CHARSET.'" ?>'."\n";
 		$xml .= '<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">'."\n\n";
@@ -2029,8 +2033,8 @@ class GShoppingFlux extends Module
 			}
 		}
 
-		$xml = '</channel>'."\n".'</rss>';
-		fwrite($googleshoppingfile, $xml);
+		$xm2 = '</channel>'."\n".'</rss>';
+		fwrite($googleshoppingfile, $xml2);
 		fclose($googleshoppingfile);
 
 		@chmod($generate_file_path, 0777);
