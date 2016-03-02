@@ -184,7 +184,8 @@ class GShoppingFlux extends Module
 		}
 		
 		foreach($languages as $lang){
-			GLangAndCurrency::add($lang['id_lang'], $this->context->currency->id, $id_shop);
+			if(!GLangAndCurrency::getLangCurrencies($lang['id_lang'], $id_shop))
+				GLangAndCurrency::add($lang['id_lang'], $this->context->currency->id, $id_shop);
 		}
 		
 		return true;
