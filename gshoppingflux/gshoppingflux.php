@@ -1970,7 +1970,11 @@ class GShoppingFlux extends Module
 
 		foreach ($products as $product) {
 			$p = new Product($product['id_product'], true, $id_lang, $id_shop, $this->context);
-			$attributeCombinations = $p->getAttributeCombinations($id_lang);
+			
+			$attributeCombinations = null;
+			if ($this->module_conf['export_attributes'] == 1) {
+				$attributeCombinations = $p->getAttributeCombinations($id_lang);
+			}
 
 			if ($this->module_conf['mpn_type'] == 'reference' && !empty($product['reference']))
 				$product['pid'] = $product['reference'];
