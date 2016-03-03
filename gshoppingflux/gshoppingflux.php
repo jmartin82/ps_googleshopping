@@ -1956,7 +1956,7 @@ class GShoppingFlux extends Module
 
 		// Check EAN13
 		if ($this->module_conf['no_gtin'] != 1)
-			$sql .= ' AND `p`.`ean13 != "" AND `p`.`ean13` != 0';
+			$sql .= ' AND `p`.`ean13` != "" AND `p`.`ean13` != 0';
 
 		// Check BRAND
 		if ($this->module_conf['no_brand'] != 1)
