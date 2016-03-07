@@ -33,7 +33,7 @@ class GShoppingFlux extends Module
 	{
 		$this->name = 'gshoppingflux';
 		$this->tab = 'smart_shopping';
-		$this->version = '1.6.2';
+		$this->version = '1.6.4';
 		$this->author  = 'Dim00z';
 
 		$this->bootstrap = true;
@@ -124,6 +124,7 @@ class GShoppingFlux extends Module
 				CREATE TABLE IF NOT EXISTS `'._DB_PREFIX_.'gshoppingflux_lc` (
 					`id_glang` INT(11) UNSIGNED NOT NULL,
 					`id_currency` VARCHAR(255) NOT NULL,
+					`tax_included` TINYINT(1) NOT NULL,
 					`id_shop` INT(11) UNSIGNED NOT NULL,
 			  INDEX (`id_glang`, `id_shop`)
 			) ENGINE = '._MYSQL_ENGINE_.' CHARACTER SET utf8 COLLATE utf8_general_ci;')
@@ -183,9 +184,9 @@ class GShoppingFlux extends Module
 			}
 		}
 		
-		foreach($languages as $lang){
-			if(!GLangAndCurrency::getLangCurrencies($lang['id_lang'], $id_shop))
-				GLangAndCurrency::add($lang['id_lang'], $this->context->currency->id, $id_shop);
+		foreach($languages as $lang){			
+			if(!count(GLangAndCurrency::getLangCurrencies($lang['id_lang'], $id_shop)))
+				GLangAndCurrency::add($lang['id_lang'], $this->context->currency->id, 1, $id_shop);
 		}
 		
 		return true;
@@ -356,9 +357,10 @@ class GShoppingFlux extends Module
 		elseif (Tools::isSubmit('updateLanguage')) {
 			$id_glang = (int)Tools::getValue('id_glang', 0);
 			$currencies = implode(";", Tools::getValue('currencies'));
+			$tax_included = (int)Tools::getValue('tax_included', 0);
 			$export = (int)Tools::getValue('active', 0);
 			if (Tools::isSubmit('updatelang')) {
-				GLangAndCurrency::update($id_glang, $currencies,(int)Shop::getContextShopID());				
+				GLangAndCurrency::update($id_glang, $currencies, $tax_included, (int)Shop::getContextShopID());				
 				if(count(Tools::getValue('currencies'))>1)
 					$this->confirm = $this->l('Selected currencies for this language have been saved.');
 				else
@@ -1259,6 +1261,7 @@ class GShoppingFlux extends Module
 		if (Tools::isSubmit('updategshoppingflux_lc') || Tools::isSubmit('statusgshoppingflux_lc')) {
 			$glang = GLangAndCurrency::getLangCurrencies(Tools::getValue('id_glang'), (int)Shop::getContextShopID());
 			$glangcurrency_edit = explode(";",$glang[0]['id_currency']);
+			$glangtax_included = $glang[0]['tax_included'];
 			$glangexport_active = $glang[0]['active'];
 		}
 		$language = Language::getLanguage(Tools::getValue('id_glang'));
@@ -1268,6 +1271,7 @@ class GShoppingFlux extends Module
 			'iso_code' => $language['iso_code'],
 			'language_code' => $language['language_code'],
 			'currencies[]' => Tools::getValue('currencies[]', $glangcurrency_edit),
+			'tax_included' => Tools::getValue('tax_included', $glangtax_included),
 			'active' => Tools::getValue('active', $glangexport_active)
 		);
 
@@ -1345,6 +1349,25 @@ class GShoppingFlux extends Module
 						),
 						'desc' => $this->l('Hold [Ctrl] key pressed to select multiple currencies.')
 					),
+					array(
+						'type' => 'switch',
+						'label' => $this->l('Prices exported tax included'),
+						'name' => 'tax_included',
+						'is_bool' => true,
+						'values' => array(
+							array(
+							  'id' => 'inc_tax',
+							  'value' => 1,
+							  'label' => $this->l('Enabled')
+							),
+							array(
+							  'id' => 'ex_tax',
+							  'value' => 0,
+							  'label' => $this->l('Disabled')
+							)
+						),						
+						'desc' => $this->l('If disabled, prices are exported ex tax.')
+					)
 				),
 				'description' => $form_desc,
 				'submit' => array(
@@ -1399,7 +1422,9 @@ class GShoppingFlux extends Module
             ),
 			'currency' => array(
 				'title' => $this->l('Currency'),
-				'width' => '30%'
+			),
+			'tax_included' => array(
+				'title' => $this->l('Tax'),
 			),
             'active' => array(
                 'title' => $this->l('Enabled'),
@@ -1436,7 +1461,7 @@ class GShoppingFlux extends Module
 		$helper->tpl_vars = array(
 			'languages' => $this->context->controller->getLanguages()
 		);
-		$glangflux = GLangAndCurrency::getAllLangCurrencies();
+		$glangflux = GLangAndCurrency::getAllLangCurrencies(0);
 		
 		foreach($glangflux as $k => $v){
 			$currencies = explode(";",$glangflux[$k]['id_currency']);
@@ -1446,6 +1471,8 @@ class GShoppingFlux extends Module
 				$arrCurr[] = $currency->iso_code;
 			}
 			$glangflux[$k]['currency'] = implode(" - ",$arrCurr);
+			if($glangflux[$k]['tax_included']==1) $glangflux[$k]['tax_included']= $this->l('Inc Tax ');
+			else $glangflux[$k]['tax_included']= $this->l('Ex Tax');
 		}
 		
 		return $helper->generateList($glangflux, $fields_list);
@@ -1635,7 +1662,7 @@ class GShoppingFlux extends Module
 				.(!$id_lang || (isset($groups) && Group::isFeatureActive()) ? ' GROUP BY c.`id_category`' : '')
 				.($sql_sort != '' ? $sql_sort : ' ORDER BY c.`level_depth` ASC')
 				.($sql_sort == '' && $use_shop_restriction ? ', cs.`position` ASC' : '')
-				.($sql_limit != '' ? $sql_limit : '')			
+				.($sql_limit != '' ? $sql_limit : ' LIMIT 1;')			
 			);
 
 			$attributes = $this->getShopAttributes($this->context->language->id, $this->context->shop->id);
@@ -1711,18 +1738,22 @@ class GShoppingFlux extends Module
 	{
 		$id_lang = (int)$this->context->language->id;
 		$id_shop = (int)Shop::getContextShopID();
+		$sql_filter = ';';
+		$sql_sort = '';
+		$sql_limit = '';
 
 		if ($id_cat == 0 && $catlist == 0) {
 			$catlist = array();
 			$shop = new Shop($id_shop);
 			$id_cat = Category::getRootCategory($id_lang, $shop);
 			$id_cat = $id_cat->id_category;
+			$sql_limit = ';';
 		}
 		
 		$category = new Category((int)$id_cat, (int)$id_lang);
 
 		if (Validate::isLoadedObject($category)) {
-			$tabcat  = $this->customGetNestedCategories($id_shop, $id_cat, $id_lang, true, $this->user_groups, true);
+			$tabcat  = $this->customGetNestedCategories($id_shop, $id_cat, $id_lang, true, $this->user_groups, true, $sql_filter, $sql_sort, $sql_limit);
 			$catlist = array_merge($catlist, $tabcat);
 		}
 
@@ -1831,16 +1862,6 @@ class GShoppingFlux extends Module
 		return 'googleshopping-s'.$shop.'-'.$lang.'-'.$curr.'.xml';
 	}
 
-	public function getPriceDisplayMethod($id_shop)
-	{
-		$ret = Db::getInstance()->executeS('
-			SELECT g.price_display_method
-			FROM '._DB_PREFIX_.'group g
-			LEFT JOIN '._DB_PREFIX_.'group_shop gs ON (g.id_group = gs.id_group)
-			WHERE g.id_group=1 AND gs.id_shop = '.(int)$id_shop);
-		return $ret[0]['price_display_method'];
-	}
-
 	public function getShopDescription($id_lang, $id_shop)
 	{
 		$ret = Db::getInstance()->executeS('
@@ -1925,7 +1946,6 @@ class GShoppingFlux extends Module
 		$xml .= '<description><![CDATA['.$this->getShopDescription($id_lang, $id_shop).']]></description>'."\n";
 		$xml .= '<link href="'.htmlspecialchars($this->uri, self::REPLACE_FLAGS, self::CHARSET, false).'" rel="alternate" type="text/html"/>'."\n";
 		$xml .= '<image>'."\n";
-		$xml .= '<title><![CDATA['.Configuration::get('PS_SHOP_NAME').']]></title>'."\n";
 		$xml .= '<url>'.htmlspecialchars($this->context->link->getMediaLink(_PS_IMG_.Configuration::get('PS_LOGO')), self::REPLACE_FLAGS, self::CHARSET, false).'</url>'."\n";
 		$xml .= '<link>'.htmlspecialchars($this->uri, self::REPLACE_FLAGS, self::CHARSET, false).'</link>'."\n";
 		$xml .= '</image>'."\n";
@@ -1940,12 +1960,13 @@ class GShoppingFlux extends Module
 		// File header
 		fwrite($googleshoppingfile, $xml);
 
-		$sql = 'SELECT DISTINCT p.*, pl.*, ps.id_category_default as category_default, gc.*, gl.* '
+		$sql = 'SELECT DISTINCT p.*, pl.*, ps.id_category_default as category_default, gc.*, glc.tax_included, gl.* '
 			. 'FROM '._DB_PREFIX_.'product p '
 			. 'INNER JOIN '._DB_PREFIX_.'product_lang pl ON pl.id_product = p.id_product '
 			. 'INNER JOIN '._DB_PREFIX_.'product_shop ps ON ps.id_product = p.id_product '
 			. 'INNER JOIN '._DB_PREFIX_.'category c ON c.id_category = p.id_category_default '
 			. 'INNER JOIN '._DB_PREFIX_.'gshoppingflux gc ON gc.id_gcategory = ps.id_category_default '
+			. 'INNER JOIN '._DB_PREFIX_.'gshoppingflux_lc glc ON glc.`id_glang` = '.$id_lang.' '
 			. 'INNER JOIN '._DB_PREFIX_.'gshoppingflux_lang gl ON gl.id_gcategory = ps.id_category_default '
 			. 'WHERE `p`.`price` > 0 AND `p`.`active` = 1 AND `c`.`active` = 1 AND `gc`.`export` = 1 '
 			. 'AND `pl`.`id_lang` = '.$id_lang.' AND `gl`.`id_lang` = '.$id_lang;
@@ -2195,7 +2216,7 @@ class GShoppingFlux extends Module
 
 		// Price(s)
 		$currency = new Currency((int)$id_curr);
-		$use_tax = ($this->getPriceDisplayMethod($id_shop) ? false : true);
+		$use_tax = ($product['tax_included'] ? true : false);
 		$no_tax = (!$use_tax ? true : false);
 		$product['price'] = (float)$p->getPriceStatic($product['id_product'], $use_tax, $combination)*$currency->conversion_rate;
 		$product['price_without_reduct'] = (float)$p->getPriceWithoutReduct($no_tax, $combination)*$currency->conversion_rate;
