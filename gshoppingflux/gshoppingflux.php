@@ -2163,7 +2163,11 @@ class GShoppingFlux extends Module
 		foreach ($images as $im) {
 			$image = $this->context->link->getImageLink($product['link_rewrite'], $product['id_product'].'-'.$im['id_image'], $image_type);
 			$image = preg_replace('*http://'.Tools::getHttpHost().'/*', $this->uri, $image);
-			$xml_googleshopping .= '<g:image_link><![CDATA['.$image.']]></g:image_link>'."\n";
+			if ($im['cover'] == 1 ) {
+				$xml_googleshopping .= '<g:image_link><![CDATA['.$image.']]></g:image_link>'."\n";
+			} else {
+				$xml_googleshopping .= '<g:additional_image_link><![CDATA['.$image.']]></g:additional_image_link>'."\n";
+			}
 			// max images by product
 			if (++$nbimages == 10)
 				break;
